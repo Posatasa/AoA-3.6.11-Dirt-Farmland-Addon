@@ -3,7 +3,7 @@
 Adds a farmland block for every dirt block in [Advent of Ascension 3](https://github.com/Tslat/Advent-Of-Ascension)
 **1.16.5-3.6.11**, so a hoe works on AoA soil the same way it works on vanilla dirt.
 
-**Download:** [`dist/aoa3farmland-1.2.0.jar`](dist/aoa3farmland-1.2.0.jar) — drop it into `mods/`
+**Download:** [`dist/aoa3farmland-1.2.1.jar`](dist/aoa3farmland-1.2.1.jar) — drop it into `mods/`
 (checksums in [`dist/SHA256SUMS.txt`](dist/SHA256SUMS.txt)).
 
 ## 1. What it adds
@@ -97,7 +97,7 @@ project is not affiliated with or endorsed by Tslat. This add-on itself is MIT �
 为 [虚无世界 3](https://github.com/Tslat/Advent-Of-Ascension) **1.16.5-3.6.11** 的每一种泥土
 方块添加了对应的耕地变种，让锄头在虚无世界的泥土上也能像在原版泥土上一样使用。
 
-**下载：** [`dist/aoa3farmland-1.2.0.jar`](dist/aoa3farmland-1.2.0.jar)，放进 `mods/` 即可。
+**下载：** [`dist/aoa3farmland-1.2.1.jar`](dist/aoa3farmland-1.2.1.jar)，放进 `mods/` 即可。
 
 1. **加了什么**：为 AoA 自己放进 `forge:dirt` 标签的全部泥土各加一块耕地，共 11 块，放在独立的
    创造模式物品栏「虚无世界耕地」中，带中英文名称。性质完全继承原版耕地（同一套湿度、干燥、踩踏
@@ -159,6 +159,11 @@ throw on).
 
 ## Changelog
 
+- **1.2.1** — fixed a crash on the first harvest (`NoSuchMethodError: List.func_190926_b`).
+  `ItemStack.isEmpty` and `java.util.List.isEmpty` shared one constant-pool NameAndType entry in the
+  loot modifier's class file, so renaming the Minecraft one also renamed the JDK one. References
+  that need renaming now get their own entry, and the build rejects any library member left with an
+  SRG name - the check was verified by reproducing the crash's bytecode.
 - **1.2.0** — fertilised farmland for every soil, wired into AoA's farming system: bone meal
   through AoA's *Fertilise Farmland* ability, the green manure crop that sets `well_fertilised`, and
   an equivalent harvest modifier so a mature crop gives its +1/+2 bonus and steps the block back

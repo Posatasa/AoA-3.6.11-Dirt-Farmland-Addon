@@ -1,1 +1,1 @@
-52ad2314f11fea5781747ea3e0500399dbfdec3efa94ed921eebd23aa08ecd7b  aoa3farmland-1.2.0.jar
+8e7b9beafc64210f08a41ecec166c6084cc4079a3670305356f0ea5dd08de72a  aoa3farmland-1.2.1.jar

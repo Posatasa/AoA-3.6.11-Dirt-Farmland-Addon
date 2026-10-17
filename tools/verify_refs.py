@@ -9,6 +9,7 @@ there is a mapping mistake, and the build fails instead of shipping it.
 Inherited members are handled by walking the superclass chain, which is what the verifier does.
 """
 import os
+import re
 import struct
 
 VALID_TAGS = {1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 16, 17, 18, 19, 20}
@@ -181,6 +182,11 @@ def check(remapped_dir, srg_jar, extra_jars=()):
     not remapped at all, so they are only used to recognise that an owner exists. A reference into
     a Minecraft or Forge-patched class that cannot be resolved is a mapping mistake; a reference
     into some other library is out of scope for this check.
+
+    The one thing that *is* checked for those other libraries is that they were not renamed: JDK
+    and Mojang library members keep their names, so an SRG-looking name on one of them means a
+    shared constant-pool entry was rewritten through it. That is how `java.util.List.isEmpty()`
+    once became `java.util.List.func_190926_b()` and crashed the first harvest.
     """
     srg = load_srg(srg_jar)
     for jar in extra_jars:
@@ -198,6 +204,9 @@ def check(remapped_dir, srg_jar, extra_jars=()):
         # got past this check once already.
         return owner.startswith(("net/minecraft/", "net/minecraftforge/")) or owner in own
 
+    def is_srg_named(member):
+        return bool(re.match(r"^(func|field)_\d", member))
+
     problems = []
     checked = 0
     for root, _, files in os.walk(remapped_dir):
@@ -208,6 +217,13 @@ def check(remapped_dir, srg_jar, extra_jars=()):
             with open(path, "rb") as fh:
                 data = fh.read()
             _, fields, methods = references(data)
+            for owner, name, descriptor in sorted(fields) + sorted(methods):
+                if in_scope(owner):
+                    continue
+                if owner.startswith(("java/", "javax/", "jdk/", "sun/", "com/mojang/", "org/")) \
+                        and is_srg_named(name):
+                    problems.append("%s: library member %s.%s was renamed"
+                                    % (os.path.basename(path), owner, name))
             for owner, name, descriptor in sorted(fields):
                 if not in_scope(owner):
                     continue

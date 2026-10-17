@@ -289,6 +289,7 @@ class ClassFile:
             raise ValueError("not a class file")
         self.entries = [None] * self.count        # index -> (tag, payload bytes) or None
         self.appended = {}                        # text -> index for UTF8 entries added here
+        self.appended_name_and_types = {}         # (name, descriptor) -> index, likewise
         self._parse_pool()
         # Bytearray: renamed declarations patch their name indices in place.
         self.rest = bytearray(data[self.pool_end:])   # access_flags .. end, all pool-index based
@@ -361,6 +362,17 @@ class ClassFile:
         self.appended[text] = index
         return index
 
+    def add_name_and_type(self, name_index, descriptor_index):
+        """Appends a NameAndType entry, so a shared one can be left as it is."""
+        key = (name_index, descriptor_index)
+        if key in self.appended_name_and_types:
+            return self.appended_name_and_types[key]
+        index = len(self.entries)
+        self.entries.append((CONSTANT_NAME_AND_TYPE,
+                             struct.pack(">HH", name_index, descriptor_index)))
+        self.appended_name_and_types[key] = index
+        return index
+
     def declared_slots(self):
         """Where each declared field and method keeps its name.
 
@@ -426,8 +438,15 @@ def remap_class_bytes(data, mappings):
     `AbstractMethodError` when something calls the abstract method - in our case, opening the
     creative inventory.
 
-    New UTF8 entries are appended rather than overwriting existing ones, because one UTF8 entry can
-    be shared by a declaration and an unrelated reference; editing it in place would rename both.
+    New constants are appended rather than existing ones overwritten, because a constant can be
+    shared by call sites that must end up different. Two examples, both of which shipped as bugs:
+
+    * one UTF8 entry can be shared by a declaration and an unrelated reference;
+    * one **NameAndType** entry can be shared by references with different owners - `ItemStack`
+      and `java.util.List` both have `isEmpty()Z`, and renaming the shared entry turned
+      `List.isEmpty()` into `List.func_190926_b()` (NoSuchMethodError on the first harvest).
+
+    So a reference that has to change gets its *own* NameAndType, and the shared one is left alone.
     """
     cls = ClassFile(data)
 
@@ -442,20 +461,24 @@ def remap_class_bytes(data, mappings):
             mapped = mappings.map_class(name)
             if mapped != name:
                 cls.entries[i] = (CONSTANT_CLASS, struct.pack(">H", cls.add_utf8(mapped)))
-        elif tag == CONSTANT_NAME_AND_TYPE:
-            # A NameAndType on its own (invokedynamic) only needs its descriptor mapped; the name
-            # is fixed by the bootstrap method.
-            name_index, descriptor_index = cls.u2(payload), cls.u2(payload, 2)
+        elif tag in (CONSTANT_DYNAMIC, CONSTANT_INVOKE_DYNAMIC):
+            # Only the descriptor can need mapping here; the call-site name belongs to the
+            # bootstrap method and is not a Minecraft member name.
+            bsm_index, nat_index = struct.unpack_from(">HH", payload)
+            name_index, descriptor_index = struct.unpack_from(">HH", cls.entries[nat_index][1])
             descriptor = cls.utf8(descriptor_index)
             mapped = mappings.map_descriptor(descriptor)
             if mapped != descriptor:
-                cls.entries[i] = (CONSTANT_NAME_AND_TYPE,
-                                  struct.pack(">HH", name_index, cls.add_utf8(mapped)))
+                cls.entries[i] = (tag, struct.pack(
+                    ">HH", bsm_index,
+                    cls.add_name_and_type(name_index, cls.add_utf8(mapped))))
         elif tag in (CONSTANT_FIELDREF, CONSTANT_METHODREF, CONSTANT_INTERFACE_METHODREF):
             # A ref names its owner through a CONSTANT_Class entry, so go via that entry's name.
-            owner = cls.utf8(cls.u2(cls.entries[cls.u2(payload)][1]))
+            class_index = cls.u2(payload)
+            owner = cls.utf8(cls.u2(cls.entries[class_index][1]))
             nat_index = cls.u2(payload, 2)
             name_index, descriptor_index = struct.unpack_from(">HH", cls.entries[nat_index][1])
+            nat_original_name, nat_original_descriptor = name_index, descriptor_index
             name, descriptor = cls.utf8(name_index), cls.utf8(descriptor_index)
             if tag == CONSTANT_FIELDREF:
                 mapped_name = mappings.map_field(owner, name)
@@ -466,8 +489,10 @@ def remap_class_bytes(data, mappings):
                 name_index = cls.add_utf8(mapped_name)
             if mapped_descriptor != descriptor:
                 descriptor_index = cls.add_utf8(mapped_descriptor)
-            cls.entries[nat_index] = (CONSTANT_NAME_AND_TYPE,
-                                      struct.pack(">HH", name_index, descriptor_index))
+            if name_index != nat_original_name or descriptor_index != nat_original_descriptor:
+                cls.entries[i] = (tag, struct.pack(
+                    ">HH", class_index,
+                    cls.add_name_and_type(name_index, descriptor_index)))
 
     # Declarations. The mapping for an override is filed under the class that declares it, which is
     # usually a superclass or interface rather than this class, so resolve through the hierarchy.
