@@ -56,16 +56,26 @@ TAB_ZH = "虚无世界耕地"
 MOISTURE_LEVELS = 8
 WET_LEVEL = MOISTURE_LEVELS - 1
 
-# How much richer the fertilised tops look, relative to the plain tilled texture. Picked so the
-# difference is obvious in game without turning the soil into a different colour.
-FERTILISED_BRIGHTNESS = 0.86
-FERTILISED_SATURATION = 1.15
-WELL_BRIGHTNESS = 0.74
-WELL_SATURATION = 1.25
+# How much richer the fertilised tops look, relative to the plain tilled texture.
+FERTILISED_BRIGHTNESS = 0.93
+FERTILISED_SATURATION = 1.10
+WELL_BRIGHTNESS = 0.84
+WELL_SATURATION = 1.20
 
-# Fixed positions where the well fertilised texture gets its compost flecks, so the result is
-# deterministic across runs and machines.
-COMPOST_FLECKS = ((2, 3), (7, 1), (11, 6), (4, 12), (13, 10), (9, 14))
+# Fertilised soil is recognisable by its flecks, not by being darker - AoA's own fertilised
+# farmland is the vanilla tilled pattern with pale and green specks scattered over it. These are
+# our own fixed positions (deterministic across runs) and our own colours; the plain block only has
+# a few, the well fertilised one has many more, which is what AoA uses to tell its two states apart.
+_PALE = (175, 185, 190)
+_GREEN = (60, 95, 48)
+_GREY = (112, 112, 112)
+SPECKLES_FERTILISED = (
+    (3, 2, _PALE), (11, 4, _PALE), (6, 7, _GREEN), (1, 11, _PALE), (12, 12, _GREEN), (8, 13, _GREY),
+)
+SPECKLES_WELL = (
+    (3, 2, _PALE), (11, 4, _PALE), (6, 2, _GREEN), (9, 6, _PALE), (2, 7, _GREEN), (13, 8, _PALE),
+    (5, 10, _GREEN), (10, 11, _GREY), (1, 13, _PALE), (7, 14, _GREEN), (14, 14, _GREY),
+)
 
 
 def fertilised_name(block):
@@ -101,11 +111,11 @@ def enrich(rgb, brightness, saturation):
     return np.asarray(image).astype(np.uint8)
 
 
-def speckle(rgb):
-    """Adds a few compost flecks, keeping the soil's own colour underneath."""
+def speckle(rgb, specks, blend=0.82):
+    """Scatters the flecks that make fertilised soil recognisable, over the soil's own colour."""
     out = rgb.astype(np.float64)
-    for x, y in COMPOST_FLECKS:
-        out[y, x] = out[y, x] * 0.55 + np.array([44.0, 72.0, 28.0]) * 0.45
+    for x, y, colour in specks:
+        out[y, x] = out[y, x] * (1.0 - blend) + np.array(colour, dtype=np.float64) * blend
     return np.clip(np.rint(out), 0, 255).astype(np.uint8)
 
 
@@ -148,12 +158,14 @@ def generate_textures():
         tops = [
             (model_name(name, "", False), dry),
             (model_name(name, "_moist", False), moist),
-            (model_name(name, "", True), enrich(dry, FERTILISED_BRIGHTNESS, FERTILISED_SATURATION)),
-            (model_name(name, "_moist", True),
-             enrich(moist, FERTILISED_BRIGHTNESS, FERTILISED_SATURATION)),
-            (model_name(name, "_well", True), speckle(enrich(dry, WELL_BRIGHTNESS, WELL_SATURATION))),
-            (model_name(name, "_well_moist", True),
-             speckle(enrich(moist, WELL_BRIGHTNESS, WELL_SATURATION))),
+            (model_name(name, "", True), speckle(
+                enrich(dry, FERTILISED_BRIGHTNESS, FERTILISED_SATURATION), SPECKLES_FERTILISED)),
+            (model_name(name, "_moist", True), speckle(
+                enrich(moist, FERTILISED_BRIGHTNESS, FERTILISED_SATURATION), SPECKLES_FERTILISED)),
+            (model_name(name, "_well", True), speckle(
+                enrich(dry, WELL_BRIGHTNESS, WELL_SATURATION), SPECKLES_WELL)),
+            (model_name(name, "_well_moist", True), speckle(
+                enrich(moist, WELL_BRIGHTNESS, WELL_SATURATION), SPECKLES_WELL)),
         ]
         for model, array in tops:
             # RGBA like every vanilla block texture, even though these are fully opaque.

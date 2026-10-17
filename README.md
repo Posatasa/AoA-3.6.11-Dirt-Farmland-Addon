@@ -3,7 +3,7 @@
 Adds a farmland block for every dirt block in [Advent of Ascension 3](https://github.com/Tslat/Advent-Of-Ascension)
 **1.16.5-3.6.11**, so a hoe works on AoA soil the same way it works on vanilla dirt.
 
-**Download:** [`dist/aoa3farmland-1.2.1.jar`](dist/aoa3farmland-1.2.1.jar) — drop it into `mods/`
+**Download:** [`dist/aoa3farmland-1.2.2.jar`](dist/aoa3farmland-1.2.2.jar) — drop it into `mods/`
 (checksums in [`dist/SHA256SUMS.txt`](dist/SHA256SUMS.txt)).
 
 ## 1. What it adds
@@ -57,12 +57,14 @@ behave the way AoA's does, including its two-way conversion:
   farmland behind. Moisture is preserved, and green manure is exempt so it keeps the block well
   fertilised. This is AoA's own rule set, applied to these blocks by an equivalent loot modifier.
 
-One deviation worth knowing: the *Fertilise Farmland* ability also grants Farming experience, and
-that award does not happen for these blocks, because the ability is cancelled before it gets that
-far. The conversion and the bone meal cost do match.
+The ability's Farming experience award is repeated for these blocks, through the same AoA API the
+ability itself uses, so fertilising one is worth exactly what fertilising vanilla farmland is worth.
 
 The tilled top is vanilla's own farmland pattern recoloured to that soil's palette. A fertilised
-top is that same pattern tinted darker and richer, with a few compost flecks once well fertilised.
+top is that same pattern with pale and green flecks scattered over it - the way AoA's own fertilised
+farmland is recognisable - a few of them when plain and many more once well fertilised, which is what
+tells AoA's two states apart. The flecks are drawn at this add-on's own fixed positions in its own
+colours.
 
 Deliberately **not** included: `aoa3:polluted_soil` and `aoa3:polluted_grass`, `aoa3:archaic_dirt`
 (a pickaxe-mined stone block that merely happens to be named dirt), and the AoA grass variants
@@ -97,7 +99,7 @@ project is not affiliated with or endorsed by Tslat. This add-on itself is MIT �
 为 [虚无世界 3](https://github.com/Tslat/Advent-Of-Ascension) **1.16.5-3.6.11** 的每一种泥土
 方块添加了对应的耕地变种，让锄头在虚无世界的泥土上也能像在原版泥土上一样使用。
 
-**下载：** [`dist/aoa3farmland-1.2.1.jar`](dist/aoa3farmland-1.2.1.jar)，放进 `mods/` 即可。
+**下载：** [`dist/aoa3farmland-1.2.2.jar`](dist/aoa3farmland-1.2.2.jar)，放进 `mods/` 即可。
 
 1. **加了什么**：为 AoA 自己放进 `forge:dirt` 标签的全部泥土各加一块耕地，共 11 块，放在独立的
    创造模式物品栏「虚无世界耕地」中，带中英文名称。性质完全继承原版耕地（同一套湿度、干燥、踩踏
@@ -119,8 +121,8 @@ project is not affiliated with or endorsed by Tslat. This add-on itself is MIT �
    普通肥沃耕地 / 普通耕地（保持湿度，绿肥作物不触发降级）。AoA 的能力原本只认原版耕地
    （`== Blocks.FARMLAND`），所以这里挂的是 AoA 自己的能力、而不是另写一套：只有真正拥有该能力
    的玩家才会触发。
-   ⚠️ 已知差异：AoA 的「施肥」能力会给农业经验，本附属的方块不发放经验（能力在被调用前就交给我们
-   处理了），转化本身与骨粉消耗与原版一致。
+   该能力给的农业经验在这边也会照发（走 AoA 自己用的同一套 API），所以给本附属的耕地施肥和给
+   原版耕地施肥，收获的经验一样。
 2. **安装侧**：`BOTH`（两端）。包含 Java 代码、mixin 与数据，服务端必须安装；没装的客户端也能进服。
 3. **许可证**：虚无世界的许可证禁止再分发其代码与素材，本附属两者都不含——源码与编译后的类里没有
    出现任何 AoA 类名，关联只靠注册名；随包发布的纹理全部由原版 `dirt` / `farmland` /
@@ -159,6 +161,10 @@ throw on).
 
 ## Changelog
 
+- **1.2.2** — fertilising now awards the same Farming experience the ability awards for vanilla
+  farmland (reached through AoA's own API by name, and checked against the AoA jar at build time),
+  and the fertilised textures got the pale and green flecks AoA's own fertilised farmland has,
+  instead of only being a shade darker.
 - **1.2.1** — fixed a crash on the first harvest (`NoSuchMethodError: List.func_190926_b`).
   `ItemStack.isEmpty` and `java.util.List.isEmpty` shared one constant-pool NameAndType entry in the
   loot modifier's class file, so renaming the Minecraft one also renamed the JDK one. References

@@ -282,6 +282,48 @@ def verify_turn_to_soil_paths(staging):
     print("block reverts to its soil on all three vanilla paths (%s)" % ", ".join(REQUIRED))
 
 
+def verify_aoa_bridge(aoa_jar):
+    """Checks the AoA members this add-on reaches by name at runtime.
+
+    The Farming experience bridge in `compat/AoASkillExperience` looks AoA's skill API up
+    reflectively, because this mod deliberately does not compile against AoA. Nothing else can
+    catch a mistake there: the compiler cannot see the call, and the SRG reference check only
+    resolves Minecraft and Forge members. A typo or a drift in AoA's API would simply stop awarding
+    experience, silently. So the names and descriptors are checked against the AoA jar itself.
+    """
+    from verify_refs import load_srg
+
+    classes = load_srg(aoa_jar)
+    skill = "Lnet/tslat/aoa3/player/skill/AoASkill;"
+    wanted = [
+        ("net/tslat/aoa3/common/registration/custom/AoASkills", "field", "FARMING",
+         "Lnet/minecraftforge/fml/RegistryObject;"),
+        ("net/tslat/aoa3/player/skill/AoASkill", "class", None, None),
+        ("net/tslat/aoa3/util/PlayerUtil", "method", "getLevel",
+         "(Lnet/minecraft/entity/player/PlayerEntity;" + skill + ")I"),
+        ("net/tslat/aoa3/util/PlayerUtil", "method", "getTimeBasedXpForLevel", "(IF)F"),
+        ("net/tslat/aoa3/util/PlayerUtil", "method", "giveXpToPlayer",
+         "(Lnet/minecraft/entity/player/ServerPlayerEntity;" + skill + "FZ)V"),
+    ]
+
+    problems = []
+    for owner, kind, name, descriptor in wanted:
+        info = classes.get(owner)
+        if info is None:
+            problems.append("AoA has no class %s" % owner)
+            continue
+        if kind == "field" and info.fields.get(name) != descriptor:
+            problems.append("%s.%s is not %s" % (owner, name, descriptor))
+        elif kind == "method" and descriptor not in info.methods.get(name, ()):
+            problems.append("%s.%s%s is missing" % (owner, name, descriptor))
+
+    if problems:
+        raise SystemExit("the Farming experience bridge does not match this AoA version:\n  "
+                         + "\n  ".join(problems))
+    print("AoA skill API matches the Farming experience bridge (%d members)"
+          % len(wanted))
+
+
 def verify_refmap(mappings, tsrg_path, srg_jar):
     """Checks that every name in the committed mixin refmap is the right SRG name.
 
@@ -547,6 +589,8 @@ def build(staging, out_jar):
     verify_overrides(staging, mappings)
     verify_block_properties(staging)
     verify_turn_to_soil_paths(staging)
+    if aoa:
+        verify_aoa_bridge(aoa)
 
     # A mixin that names the wrong SRG method fails at class-transform time, i.e. it takes the
     # game down at startup. The refmap is the only place those names live, so check every entry

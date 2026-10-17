@@ -1,9 +1,11 @@
 package com.posatasa.aoa3farmland.mixin;
 
 import com.posatasa.aoa3farmland.FarmlandBlocks;
+import com.posatasa.aoa3farmland.compat.AoASkillExperience;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.FarmlandBlock;
+import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.util.math.BlockPos;
@@ -25,9 +27,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * runs when the ability would have run, and only takes over for blocks vanilla would have rejected.
  *
  * <p>Everything else is left alone, so bone meal on vanilla farmland still goes down AoA's own path.
- * The one difference for our blocks is that the ability's Farming experience award does not happen,
- * because the ability is cancelled before it gets there; the conversion, the bone meal cost and the
- * moisture being preserved all match.
+ * For our blocks the ability's own Farming experience award is repeated here (see
+ * {@link AoASkillExperience}), so converting one is worth exactly what converting vanilla farmland
+ * is worth.
  */
 @Mixin(targets = "net.tslat.aoa3.player.ability.FertiliseFarmland")
 public abstract class MixinFertiliseFarmland {
@@ -51,6 +53,10 @@ public abstract class MixinFertiliseFarmland {
         BlockState fertilised = farmland.defaultBlockState()
                 .setValue(FarmlandBlock.MOISTURE, state.getValue(FarmlandBlock.MOISTURE));
         world.setBlock(pos, fertilised, 3);
+        if (event.getPlayer() instanceof ServerPlayerEntity) {
+            // What the ability would have awarded for a vanilla farmland.
+            AoASkillExperience.awardFarmingXp((ServerPlayerEntity) event.getPlayer());
+        }
         if (!event.getPlayer().isCreative()) {
             held.shrink(1);
         }
