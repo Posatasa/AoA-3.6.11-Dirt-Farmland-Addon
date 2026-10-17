@@ -4,22 +4,22 @@
       "model": "aoa3farmland:block/blackened_farmland"
     },
     "moisture=1": {
-      "model": "aoa3farmland:block/blackened_farmland_moist_1"
+      "model": "aoa3farmland:block/blackened_farmland"
     },
     "moisture=2": {
-      "model": "aoa3farmland:block/blackened_farmland_moist_2"
+      "model": "aoa3farmland:block/blackened_farmland"
     },
     "moisture=3": {
-      "model": "aoa3farmland:block/blackened_farmland_moist_3"
+      "model": "aoa3farmland:block/blackened_farmland"
     },
     "moisture=4": {
-      "model": "aoa3farmland:block/blackened_farmland_moist_4"
+      "model": "aoa3farmland:block/blackened_farmland"
     },
     "moisture=5": {
-      "model": "aoa3farmland:block/blackened_farmland_moist_5"
+      "model": "aoa3farmland:block/blackened_farmland"
     },
     "moisture=6": {
-      "model": "aoa3farmland:block/blackened_farmland_moist_6"
+      "model": "aoa3farmland:block/blackened_farmland"
     },
     "moisture=7": {
       "model": "aoa3farmland:block/blackened_farmland_moist"

@@ -3,7 +3,7 @@
 Adds a farmland block for every dirt block in [Advent of Ascension 3](https://github.com/Tslat/Advent-Of-Ascension)
 **1.16.5-3.6.11**, so a hoe works on AoA soil the same way it works on vanilla dirt.
 
-**Download:** [`dist/aoa3farmland-1.1.1.jar`](dist/aoa3farmland-1.1.1.jar) — drop it into `mods/`
+**Download:** [`dist/aoa3farmland-1.1.2.jar`](dist/aoa3farmland-1.1.2.jar) — drop it into `mods/`
 (checksums in [`dist/SHA256SUMS.txt`](dist/SHA256SUMS.txt)).
 
 ## 1. What it adds
@@ -32,10 +32,9 @@ rules, same trampling and crop support — with three differences:
 - Only the top face is a tilled texture, exactly like vanilla farmland; the sides and bottom use
   AoA's own soil texture. That texture is *referenced* by resource location, not copied, so it
   always matches the AoA version installed.
-- The top face dries out and soaks up water **one moisture level at a time** (8 textures per
-  block). Vanilla farmland has the same eight `moisture` values but only two textures, so it looks
-  dry all the way from 0 to 6 and only changes at 7; here every step is slightly darker. Levels 0
-  and 7 are exactly vanilla's two looks.
+- The top face changes appearance with moisture exactly the way vanilla's does: one texture while
+  the block is dry (moisture 0-6) and a darker one once it is fully wet (moisture 7), so farmland
+  next to water looks different from farmland that has dried out.
 - Vanilla and AoA crops can be planted on it. Both hard-code "the block below must be
   `minecraft:farmland`", a check no modded farmland can satisfy, so this add-on widens that single
   check for its own blocks (see `src/.../mixin`). It only ever turns a `false` into a `true`, so
@@ -77,7 +76,7 @@ project is not affiliated with or endorsed by Tslat. This add-on itself is MIT �
 为 [虚无世界 3](https://github.com/Tslat/Advent-Of-Ascension) **1.16.5-3.6.11** 的每一种泥土
 方块添加了对应的耕地变种，让锄头在虚无世界的泥土上也能像在原版泥土上一样使用。
 
-**下载：** [`dist/aoa3farmland-1.1.1.jar`](dist/aoa3farmland-1.1.1.jar)，放进 `mods/` 即可。
+**下载：** [`dist/aoa3farmland-1.1.2.jar`](dist/aoa3farmland-1.1.2.jar)，放进 `mods/` 即可。
 
 1. **加了什么**：为 AoA 自己放进 `forge:dirt` 标签的全部泥土各加一块耕地，共 11 块，放在独立的
    创造模式物品栏「虚无世界耕地」中，带中英文名称。性质完全继承原版耕地（同一套湿度、干燥、踩踏
@@ -87,9 +86,8 @@ project is not affiliated with or endorsed by Tslat. This add-on itself is MIT �
    任何附属耕地都无法满足，所以这里只针对本附属的方块放宽了那一处判断（见 `src/.../mixin`），
    它只会把 `false` 改成 `true`，其余种植规则仍是原版的；Forge 系作物则通过标准的
    `canSustainPlant` 支持。耕地上表面用原版耕地的图案，配色改成对应泥土的色调。
-   **上表面会随湿度逐级变深**（每块耕地 8 张纹理）：原版耕地的 `moisture` 同样是 0–7，但只有
-   「干」「湿」两张图，0–6 全都一个样、只有到 7 才变；这里每一级都略有不同，0 和 7 仍与原版
-   那两张完全一致。
+   上表面的外观变化与原版一致：湿度 0–6 用「干」的纹理，到 7 换成更深的「湿」纹理，所以
+   旁边有水时和干透时的观感不同。
    刻意不含 `polluted_soil` / `polluted_grass`（按需求排除）、`archaic_dirt`（是镐挖的石头方块，
    只是名字叫泥土），以及长在石头上的那些草方块。
 2. **安装侧**：`BOTH`（两端）。包含 Java 代码、mixin 与数据，服务端必须安装；没装的客户端也能进服。
@@ -130,6 +128,9 @@ throw on).
 
 ## Changelog
 
+- **1.1.2** — back to vanilla's two appearances: one top texture for moisture 0-6 and a darker
+  one at 7, instead of the eight-step ramp from 1.1.0. The `randomTicks()` fix from 1.1.1 stays,
+  so the block still actually dries out and wets up.
 - **1.1.1** — fixed the moisture never changing. The blocks were created without vanilla
   farmland's `randomTicks()`, so they never received random ticks: `FarmlandBlock#randomTick` never
   ran, moisture stayed at 0, and every block looked bone dry no matter how much water was next to

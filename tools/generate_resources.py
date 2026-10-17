@@ -4,9 +4,12 @@ Textures: vanilla's farmland pattern, recoloured to each AoA soil's palette. Van
 and farmland_moist textures are the same tiled pattern as vanilla dirt, drawn in a different
 colour, so dividing farmland by the average colour of vanilla dirt yields a reusable
 "tilled" multiplier with a per-channel mean of exactly 1. Multiplying any soil by it gives
-that soil in the vanilla tilled pattern, at the soil's own brightness. Applying vanilla's
-moist/dry brightness ratio on top produces the wet state. Feeding vanilla dirt back through
-the dry path reproduces vanilla farmland.png byte for byte.
+that soil in the vanilla tilled pattern, at the soil's own brightness. The moist texture is that
+result re-shaded at vanilla's moist brightness. Feeding vanilla dirt back through the dry path
+reproduces vanilla farmland.png byte for byte.
+
+The block looks the way vanilla farmland looks: one top texture for moisture 0..6 and a darker one
+at 7. Nothing here invents intermediate steps.
 
 Models: like vanilla farmland, only the top face is the tilled texture. The sides and bottom
 point at AoA's own soil texture (`aoa3:block/<soil>`), so they stay plain dirt - and since that
@@ -46,18 +49,14 @@ TAB_KEY = "itemGroup.aoa3farmland"
 TAB_EN = "AoA3 Farmland"
 TAB_ZH = "虚无世界耕地"
 
-# FarmlandBlock#MOISTURE runs 0..7.
+# FarmlandBlock#MOISTURE runs 0..7, and vanilla draws 0..6 with one texture and 7 with another.
 MOISTURE_LEVELS = 8
+WET_LEVEL = MOISTURE_LEVELS - 1
 
 
-def texture_name(block, level):
-    """Texture/model suffix for one moisture level. 0 is the plain name, 7 the vanilla-style
-    '_moist' name, so the two extremes keep the conventional spellings."""
-    if level == 0:
-        return block
-    if level == MOISTURE_LEVELS - 1:
-        return block + "_moist"
-    return "%s_moist_%d" % (block, level)
+def model_name(block, level):
+    """The model/texture for one moisture level: vanilla's two states, nothing in between."""
+    return block + "_moist" if level == WET_LEVEL else block
 
 
 def write_json(path, obj):
@@ -65,6 +64,16 @@ def write_json(path, obj):
     with open(path, "w", encoding="utf-8", newline="\n") as fh:
         json.dump(obj, fh, indent=2, ensure_ascii=False)
         fh.write("\n")
+
+
+def clean(directory):
+    """Removes generated files so a changed naming scheme cannot leave stale ones behind."""
+    if not os.path.isdir(directory):
+        return
+    for name in os.listdir(directory):
+        path = os.path.join(directory, name)
+        if os.path.isfile(path):
+            os.remove(path)
 
 
 def generate_textures():
@@ -82,39 +91,31 @@ def generate_textures():
     tilled = farmland / dirt.mean(axis=(0, 1), keepdims=True)
     wet_brightness = farmland_moist.mean() / farmland.mean()
 
-    # Vanilla has eight moisture levels but only two textures - it looks dry at 0..6 and wet only at
-    # 7. These blocks instead get one texture per level, so the soil visibly darkens as it soaks up
-    # water and dries out again. Level 0 and level 7 are exactly the vanilla dark/light ends.
-    def wetness(level):
-        """0.0 for bone dry, 1.0 for fully wet; the ramp is equal steps between them."""
-        return max(0.0, min(1.0, level / 7.0))
-
-    def recolor(soil, wet=0.0):
+    def recolor(soil, wet):
         out = soil.mean(axis=(0, 1), keepdims=True) * tilled
-        if wet > 0.0:
-            # Shade towards vanilla's moist brightness. Vanilla's wet texture is darker with
-            # slightly different channel weights, so the colour is kept and only the brightness
-            # moves - which is also what makes a partial wetness meaningful.
-            factor = 1.0 + wet * (wet_brightness - 1.0)
+        if wet:
+            # Re-shade at vanilla's moist brightness. Vanilla's wet texture is darker with slightly
+            # different channel weights, so the colour is kept and only the brightness moves.
             lum = 0.2126 * out[:, :, 0] + 0.7152 * out[:, :, 1] + 0.0722 * out[:, :, 2]
             colour = out / np.maximum(lum[:, :, None], 1e-6)
-            out = colour * (lum * factor)[:, :, None]
+            out = colour * (lum * wet_brightness)[:, :, None]
         return np.clip(np.rint(out), 0, 255).astype(np.uint8)
 
     # Guard: the dry path must reproduce vanilla farmland exactly on vanilla dirt.
-    assert np.array_equal(recolor(dirt, 0.0), farmland.astype(np.uint8)), \
+    assert np.array_equal(recolor(dirt, False), farmland.astype(np.uint8)), \
         "texture transfer no longer reproduces vanilla farmland"
     print("texture transfer reproduces vanilla farmland exactly")
 
     out_dir = os.path.join(ASSETS, "textures", "block")
     os.makedirs(out_dir, exist_ok=True)
+    clean(out_dir)
     for name, texture, _, _, _ in SOILS:
         soil = load(za, "assets/aoa3/textures/block/%s.png" % texture)
-        for level in range(MOISTURE_LEVELS):
+        for suffix, wet in (("", False), ("_moist", True)):
             # RGBA like every vanilla block texture, even though these are fully opaque.
-            image = Image.fromarray(recolor(soil, wetness(level))).convert("RGBA")
-            image.save(os.path.join(out_dir, texture_name(name, level) + ".png"))
-        print("  %s: %d moisture textures" % (name, MOISTURE_LEVELS))
+            image = Image.fromarray(recolor(soil, wet)).convert("RGBA")
+            image.save(os.path.join(out_dir, name + suffix + ".png"))
+        print("  %s.png / %s_moist.png" % (name, name))
 
 
 def generate_resources():
@@ -124,24 +125,28 @@ def generate_resources():
     zh[TAB_KEY] = TAB_ZH
     dirt_tag = []
 
+    models_dir = os.path.join(ASSETS, "models", "block")
+    blockstates_dir = os.path.join(ASSETS, "blockstates")
+    clean(models_dir)
+    clean(blockstates_dir)
+
     for name, texture, soil, english, chinese in SOILS:
         bid = "aoa3farmland:" + name
 
-        # blockstate: one model per moisture level, so the soil visibly dries out in steps
+        # blockstate: exactly vanilla's split - dry for 0..6, moist at 7
         variants = {}
         for level in range(MOISTURE_LEVELS):
             variants["moisture=%d" % level] = {
-                "model": "aoa3farmland:block/" + texture_name(name, level)}
-        write_json(os.path.join(ASSETS, "blockstates", name + ".json"), {"variants": variants})
+                "model": "aoa3farmland:block/" + model_name(name, level)}
+        write_json(os.path.join(blockstates_dir, name + ".json"), {"variants": variants})
 
         # models: only `top` is ours. `dirt` is AoA's own soil texture, so the sides and bottom
         # stay plain dirt exactly like vanilla farmland - and no AoA asset is copied into the jar.
-        for level in range(MOISTURE_LEVELS):
-            model = texture_name(name, level)
-            write_json(os.path.join(ASSETS, "models", "block", model + ".json"), {
+        for suffix, top in (("", name), ("_moist", name + "_moist")):
+            write_json(os.path.join(models_dir, name + suffix + ".json"), {
                 "parent": "minecraft:block/template_farmland",
                 "textures": {
-                    "top": "aoa3farmland:block/" + model,
+                    "top": "aoa3farmland:block/" + top,
                     "dirt": "aoa3:block/" + texture,
                 },
             })
