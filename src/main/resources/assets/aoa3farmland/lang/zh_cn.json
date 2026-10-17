@@ -1,0 +1,15 @@
+{
+  "_comment": "由 tools/generate_resources.py 生成",
+  "itemGroup.aoa3farmland": "虚无世界耕地",
+  "block.aoa3farmland.aromatic_farmland": "芬芳耕地",
+  "block.aoa3farmland.blackened_farmland": "漆黑耕地",
+  "block.aoa3farmland.candied_farmland": "糖果耕地",
+  "block.aoa3farmland.celevian_farmland": "玩具耕地",
+  "block.aoa3farmland.coral_farmland": "珊瑚耕地",
+  "block.aoa3farmland.creep_farmland": "蠕变耕地",
+  "block.aoa3farmland.fungal_farmland": "真菌耕地",
+  "block.aoa3farmland.greckon_farmland": "格瑞克耕地",
+  "block.aoa3farmland.lunalyte_farmland": "粉色月球耕地",
+  "block.aoa3farmland.lunasole_farmland": "蓝色月球耕地",
+  "block.aoa3farmland.weightless_farmland": "轻盈耕地"
+}

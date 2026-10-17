@@ -2,6 +2,6 @@
   "parent": "minecraft:block/template_farmland",
   "textures": {
     "top": "aoa3farmland:block/candied_farmland_moist",
-    "dirt": "aoa3farmland:block/candied_farmland"
+    "dirt": "aoa3:block/candied_dirt"
   }
 }

@@ -7,6 +7,7 @@ import net.minecraft.block.material.Material;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemGroup;
+import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemUseContext;
 import net.minecraft.util.Direction;
 import net.minecraft.util.ResourceLocation;
@@ -55,6 +56,21 @@ public final class FarmlandBlocks {
     public static final String MOD_ID = "aoa3farmland";
     private static final Logger LOGGER = LogManager.getLogger(MOD_ID);
 
+    /** The first block added, used as this mod's creative tab icon. */
+    private static RegistryObject<Block> icon;
+
+    /**
+     * This mod's own creative tab. Forge patches {@link ItemGroup} so that a plain
+     * {@code new ItemGroup(label)} is registered with a spare index, and vanilla builds the
+     * translation key as {@code itemGroup.<label>} - which is what the lang files provide.
+     */
+    public static final ItemGroup TAB = new ItemGroup(MOD_ID) {
+        @Override
+        public ItemStack makeIcon() {
+            return new ItemStack(icon.get());
+        }
+    };
+
     private static final DeferredRegister<Block> BLOCKS =
             DeferredRegister.create(ForgeRegistries.BLOCKS, MOD_ID);
     private static final DeferredRegister<Item> ITEMS =
@@ -93,7 +109,10 @@ public final class FarmlandBlocks {
         RegistryObject<Block> block = BLOCKS.register(name,
                 () -> new AoAFarmlandBlock(properties(), null));
         ITEMS.register(name, () -> new BlockItem(block.get(),
-                new Item.Properties().tab(ItemGroup.TAB_DECORATIONS)));
+                new Item.Properties().tab(TAB)));
+        if (icon == null) {
+            icon = block;
+        }
         SOILS.add(new Soil(soil, grass, MOD_ID + ":" + name, block));
     }
 

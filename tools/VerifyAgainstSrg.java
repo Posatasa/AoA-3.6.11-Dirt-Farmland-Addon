@@ -15,6 +15,7 @@ public class VerifyAgainstSrg {
                 "com.posatasa.aoa3farmland.AddonFarmland",
                 "com.posatasa.aoa3farmland.FarmlandBlocks",
                 "com.posatasa.aoa3farmland.block.AoAFarmlandBlock",
+                "com.posatasa.aoa3farmland.mixin.MixinMayPlaceOn",
         };
         ClassLoader loader = VerifyAgainstSrg.class.getClassLoader();
         int failures = 0;

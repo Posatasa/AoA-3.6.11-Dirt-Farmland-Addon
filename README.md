@@ -3,12 +3,13 @@
 Adds a farmland block for every dirt block in [Advent of Ascension 3](https://github.com/Tslat/Advent-Of-Ascension)
 **1.16.5-3.6.11**, so a hoe works on AoA soil the same way it works on vanilla dirt.
 
-**Download:** [`dist/aoa3farmland-1.0.1.jar`](dist/aoa3farmland-1.0.1.jar) — drop it into `mods/`
+**Download:** [`dist/aoa3farmland-1.0.2.jar`](dist/aoa3farmland-1.0.2.jar) — drop it into `mods/`
 (checksums in [`dist/SHA256SUMS.txt`](dist/SHA256SUMS.txt)).
 
 ## 1. What it adds
 
-Eleven farmland blocks, one for each AoA block that AoA itself puts in the `forge:dirt` tag:
+Eleven farmland blocks, one for each AoA block that AoA itself puts in the `forge:dirt` tag,
+in their own creative tab ("AoA3 Farmland" / 虚无世界耕地) and in English and Chinese:
 
 | Farmland | Tilled from | Drops |
 | --- | --- | --- |
@@ -25,11 +26,19 @@ Eleven farmland blocks, one for each AoA block that AoA itself puts in the `forg
 | Weightless Farmland | `aoa3:weightless_dirt`, `aoa3:weightless_grass` | `aoa3:weightless_dirt` |
 
 Each one behaves exactly like vanilla farmland — same block class, same moisture and drying
-rules, same trampling and crop support — with two differences:
+rules, same trampling and crop support — with three differences:
 
 - Breaking it (or trampling it) gives back the AoA soil it came from, not `minecraft:dirt`.
-- Its textures are vanilla's own farmland pattern recoloured to that soil's palette, so the
-  tilled ridges look vanilla while the colour matches the AoA block.
+- Only the top face is a tilled texture, exactly like vanilla farmland; the sides and bottom use
+  AoA's own soil texture. That texture is *referenced* by resource location, not copied, so it
+  always matches the AoA version installed.
+- Vanilla and AoA crops can be planted on it. Both hard-code "the block below must be
+  `minecraft:farmland`", a check no modded farmland can satisfy, so this add-on widens that single
+  check for its own blocks (see `src/.../mixin`). It only ever turns a `false` into a `true`, so
+  every other planting rule stays vanilla's. Forge-aware crops are supported through the normal
+  `canSustainPlant` contract instead.
+
+The tilled top is vanilla's own farmland pattern recoloured to that soil's palette.
 
 Deliberately **not** included: `aoa3:polluted_soil` and `aoa3:polluted_grass`, `aoa3:archaic_dirt`
 (a pickaxe-mined stone block that merely happens to be named dirt), and the AoA grass variants
@@ -39,8 +48,8 @@ tilled out of stone would not read as farmland.
 
 ## 2. Side: BOTH
 
-Ships Java code and data, so it must be on the server. It adds no client-only rendering, and
-clients that do not have it installed can still join a server that does.
+Ships Java code, a mixin and data, so it must be on the server. It adds no client-only rendering,
+and clients that do not have it installed can still join a server that does.
 
 ## 3. AoA licensing
 
@@ -49,8 +58,9 @@ redistributing its code or assets. This add-on contains none of either:
 
 - No AoA class is named anywhere in the source or in the compiled classes; the association to
   AoA's blocks is made purely by registry name.
-- No AoA texture or model is copied. Every texture here is derived from vanilla Minecraft's own
-  `dirt`, `farmland` and `farmland_moist` textures.
+- No AoA texture or model is copied. Every texture shipped here is derived from vanilla
+  Minecraft's own `dirt`, `farmland` and `farmland_moist` textures; the block models merely point
+  at AoA's soil texture by resource location, which the game reads from AoA's own jar at runtime.
 
 AoA's license permits creating and distributing add-ons. AoA is the property of its author; this
 project is not affiliated with or endorsed by Tslat. This add-on itself is MIT — see
@@ -63,17 +73,23 @@ project is not affiliated with or endorsed by Tslat. This add-on itself is MIT �
 为 [虚无世界 3](https://github.com/Tslat/Advent-Of-Ascension) **1.16.5-3.6.11** 的每一种泥土
 方块添加了对应的耕地变种，让锄头在虚无世界的泥土上也能像在原版泥土上一样使用。
 
-**下载：** [`dist/aoa3farmland-1.0.1.jar`](dist/aoa3farmland-1.0.1.jar)，放进 `mods/` 即可。
+**下载：** [`dist/aoa3farmland-1.0.2.jar`](dist/aoa3farmland-1.0.2.jar)，放进 `mods/` 即可。
 
-1. **加了什么**：为 AoA 自己放进 `forge:dirt` 标签的全部泥土各加一块耕地，共 11 块；性质完全
-   继承原版耕地（同一套湿度、干燥、踩踏与作物规则），区别只有两点：破坏或被踩踏时掉落的是
-   对应的虚无世界泥土而非原版泥土；纹理用原版耕地的图案，配色改成对应泥土的色调。
+1. **加了什么**：为 AoA 自己放进 `forge:dirt` 标签的全部泥土各加一块耕地，共 11 块，放在独立的
+   创造模式物品栏「虚无世界耕地」中，带中英文名称。性质完全继承原版耕地（同一套湿度、干燥、踩踏
+   与作物规则），区别只有三点：破坏或被踩踏时掉落的是对应的虚无世界泥土而非原版泥土；只有**上表面**
+   是耕地纹理，侧面和底面用 AoA 自己的泥土纹理（按资源路径引用，不复制，所以永远和所装的 AoA 版本
+   一致）；**原版和 AoA 的作物都能种在上面**——它们把「下方必须是 `minecraft:farmland`」写死了，
+   任何附属耕地都无法满足，所以这里只针对本附属的方块放宽了那一处判断（见 `src/.../mixin`），
+   它只会把 `false` 改成 `true`，其余种植规则仍是原版的；Forge 系作物则通过标准的
+   `canSustainPlant` 支持。耕地上表面用原版耕地的图案，配色改成对应泥土的色调。
    刻意不含 `polluted_soil` / `polluted_grass`（按需求排除）、`archaic_dirt`（是镐挖的石头方块，
    只是名字叫泥土），以及长在石头上的那些草方块。
-2. **安装侧**：`BOTH`（两端）。包含 Java 代码与数据，服务端必须安装；没装的客户端也能进服。
-3. **许可证**：虚无世界的许可证禁止再分发其代码与素材，本附属两者都不含——源码与编译后的类
-   里没有出现任何 AoA 类名，关联只靠注册名；纹理全部由原版 `dirt` / `farmland` /
-   `farmland_moist` 推导而来。AoA 许可证允许制作与分发附属。本附属自身为 MIT。
+2. **安装侧**：`BOTH`（两端）。包含 Java 代码、mixin 与数据，服务端必须安装；没装的客户端也能进服。
+3. **许可证**：虚无世界的许可证禁止再分发其代码与素材，本附属两者都不含——源码与编译后的类里没有
+   出现任何 AoA 类名，关联只靠注册名；随包发布的纹理全部由原版 `dirt` / `farmland` /
+   `farmland_moist` 推导而来，模型里只是按路径引用 AoA 自己的泥土纹理。AoA 许可证允许制作与分发
+   附属。本附属自身为 MIT。
 
 ## Building
 
@@ -92,8 +108,9 @@ python tools/build.py
 ```
 
 This compiles against the cached MCP-named Forge jar, remaps the result to SRG names, checks
-every reference against the SRG jar, and packages the jar. It needs Python 3 and Pillow only if
-you also want to regenerate the textures:
+every reference against the SRG jar, checks the mixin refmap against the game's real names, and
+packages the jar. It needs Python 3 and Pillow only if you also want to regenerate the textures
+and models:
 
 ```
 python tools/generate_resources.py
@@ -106,8 +123,12 @@ throw on).
 
 ## Changelog
 
-- **1.0.1** — fixed two startup/runtime bugs: registering a *generic* event listener
-  (`RegistryEvent.Register`) through `addListener`, which Forge rejects while the mod is being
-  constructed; and tilling, which was hooked on the farmland block instead of on the AoA block
-  being tilled and so never ran. Tilling now goes through `UseHoeEvent`.
+- **1.0.2** — own creative tab; Chinese translation; only the top face is tilled and the sides
+  and bottom use AoA's soil texture, as in vanilla farmland; crops can be planted (vanilla and AoA
+  crops through a one-line mixin that widens their hard-coded farmland check, Forge crops through
+  `canSustainPlant`), and moist farmland counts as fertile again.
+- **1.0.1** — fixed two bugs: registering a *generic* event listener (`RegistryEvent.Register`)
+  through `addListener`, which Forge rejects while the mod is being constructed; and tilling,
+  which was hooked on the farmland block instead of on the AoA block being tilled and so never
+  ran. Tilling now goes through `UseHoeEvent`.
 - **1.0.0** — first release.

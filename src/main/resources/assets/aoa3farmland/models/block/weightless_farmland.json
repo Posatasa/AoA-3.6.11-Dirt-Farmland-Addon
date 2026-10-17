@@ -2,6 +2,6 @@
   "parent": "minecraft:block/template_farmland",
   "textures": {
     "top": "aoa3farmland:block/weightless_farmland",
-    "dirt": "aoa3farmland:block/weightless_farmland"
+    "dirt": "aoa3:block/weightless_dirt"
   }
 }

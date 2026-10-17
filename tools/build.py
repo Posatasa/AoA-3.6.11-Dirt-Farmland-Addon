@@ -84,6 +84,10 @@ def javac_sources(source_dir, out_dir, classpath):
         sources += [os.path.join(root, f) for f in files if f.endswith(".java")]
     os.makedirs(out_dir, exist_ok=True)
     command = [javac, "-encoding", "UTF-8", "-source", "1.8", "-target", "1.8",
+               # The mixin annotation processor would try to generate a refmap of its own and
+               # needs a mapping service this build does not provide; the refmap is committed and
+               # verified by verify_refmap() instead.
+               "-proc:none",
                "-nowarn", "-cp", classpath, "-d", out_dir] + sources
     print("compiling %d sources" % len(sources))
     result = subprocess.run(command, capture_output=True, text=True)
@@ -131,6 +135,75 @@ def cached_jars():
     return sorted(jars)
 
 
+def verify_refmap(mappings, tsrg_path, srg_jar):
+    """Checks that every name in the committed mixin refmap is the right SRG name.
+
+    A mixin names its target method with the *source* name and relies on the refmap to find it in
+    production. If an entry is wrong the failure happens while the class is being transformed, which
+    means the game dies at startup - the least forgiving place to be wrong. So each entry is checked
+    twice: against the TSRG tables, and against the method that actually exists in the SRG jar.
+    """
+    import verify_refs
+    config_path = os.path.join(ROOT, "src", "main", "resources", "aoa3farmland.mixins.json")
+    refmap_path = os.path.join(ROOT, "src", "main", "resources", "aoa3farmland.refmap.json")
+    with open(config_path, encoding="utf-8") as fh:
+        config = json.load(fh)
+    with open(refmap_path, encoding="utf-8") as fh:
+        refmap = json.load(fh)
+
+    package = config["package"].replace(".", "/")
+    refmap_name = config["refmap"]
+    if os.path.basename(refmap_path) != refmap_name:
+        raise SystemExit("mixin config references %s but the refmap is %s"
+                         % (refmap_name, os.path.basename(refmap_path)))
+    for mixin in config.get("mixins", []) + config.get("client", []):
+        expected = os.path.join(ROOT, "build", "script", "classes", package, mixin + ".class")
+        if not os.path.isfile(expected):
+            raise SystemExit("mixin %s is listed in the config but was not compiled" % mixin)
+
+    # The methods these mixins inject into, per target class.
+    TARGETS = {
+        "mayPlaceOn": (
+            ["net/minecraft/block/CropsBlock", "net/minecraft/block/StemBlock",
+             "net/minecraft/block/AttachedStemBlock"],
+            "(Lnet/minecraft/block/BlockState;Lnet/minecraft/world/IBlockReader;"
+            "Lnet/minecraft/util/math/BlockPos;)Z"),
+    }
+
+    srg = verify_refs.load_srg(srg_jar)
+    problems = []
+    for mixin_class, members in refmap.get("mappings", {}).items():
+        for source_name, srg_name in members.items():
+            if source_name not in TARGETS:
+                problems.append("refmap names %s, which this build does not know how to check"
+                                % source_name)
+                continue
+            owners, descriptor = TARGETS[source_name]
+            params = remap.Mappings.params(descriptor)
+            for owner in owners:
+                entry = mappings.methods.get((owner, source_name, params))
+                if entry is None:
+                    problems.append("TSRG has no %s.%s%s" % (owner, source_name, descriptor))
+                elif entry[0] != srg_name:
+                    problems.append("refmap says %s for %s.%s but TSRG says %s"
+                                    % (srg_name, owner, source_name, entry[0]))
+                info = srg.get(owner)
+                if info is None:
+                    problems.append("SRG jar has no class %s" % owner)
+                elif descriptor not in info.methods.get(srg_name, ()):
+                    problems.append("SRG jar has no %s.%s%s" % (owner, srg_name, descriptor))
+    for env, table in refmap.get("data", {}).items():
+        for mixin_class, members in table.items():
+            for source_name, mapped in members.items():
+                if env == "searge" and mapped != refmap["mappings"].get(mixin_class, {}).get(source_name):
+                    problems.append("refmap data.searge disagrees with mappings for %s" % source_name)
+    for problem in problems:
+        print("  " + problem)
+    if problems:
+        raise SystemExit("mixin refmap does not match the game's actual names; refusing to package")
+    print("mixin refmap verified against the TSRG tables and the SRG jar")
+
+
 def build(staging, out_jar):
     classpath_parts = [MCP_JAR] + cached_jars()
     aoa = find_aoa_jar(args.aoa_jar)
@@ -174,6 +247,11 @@ def build(staging, out_jar):
                 raise SystemExit("%s references an AoA class" % os.path.join(root, f))
     print("no AoA classes referenced by any built class")
 
+    # A mixin that names the wrong SRG method fails at class-transform time, i.e. it takes the
+    # game down at startup. The refmap is the only place those names live, so check every entry
+    # against the TSRG tables *and* against the SRG jar before packaging.
+    verify_refmap(mappings, MAPPINGS, SRG_JAR)
+
     resources = os.path.join(staging, "resources")
     shutil.copytree(os.path.join(ROOT, "src", "main", "resources"), resources)
     props = expand_mods_toml(resources)
@@ -186,6 +264,7 @@ def build(staging, out_jar):
         "Implementation-Title: %s\n"
         "Implementation-Version: %s\n"
         "Implementation-Vendor: %s\n"
+        "MixinConfigs: aoa3farmland.mixins.json\n"
         "\n" % (MOD_ID, props["mod_authors"], MOD_ID, VERSION, props["mod_authors"])
     ).replace("\n", "\r\n")
 

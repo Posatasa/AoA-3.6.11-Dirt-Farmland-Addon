@@ -1,0 +1,19 @@
+{
+  "mappings": {
+    "com/posatasa/aoa3farmland/mixin/MixinMayPlaceOn": {
+      "mayPlaceOn": "func_200014_a_"
+    }
+  },
+  "data": {
+    "searge": {
+      "com/posatasa/aoa3farmland/mixin/MixinMayPlaceOn": {
+        "mayPlaceOn": "func_200014_a_"
+      }
+    },
+    "named": {
+      "com/posatasa/aoa3farmland/mixin/MixinMayPlaceOn": {
+        "mayPlaceOn": "mayPlaceOn"
+      }
+    }
+  }
+}

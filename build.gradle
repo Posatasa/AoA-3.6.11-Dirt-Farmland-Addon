@@ -52,10 +52,17 @@ repositories {
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    // Only for the mixin annotations. The refmap is committed and checked by tools/build.py, so
+    // the annotation processor is switched off below rather than asked to generate one.
+    compileOnly 'org.spongepowered:mixin:0.8.4'
 
     // Optional: drop the real AoA jar (aoa3-1.16.5-3.6.11.jar) into libs/ for compile-time checking
-    // of the AoA classes this mod talks to (its item groups). It is never packaged into the jar.
+    // of the AoA classes this mod talks to. It is never packaged into the jar.
     compileOnly fileTree(dir: 'libs', include: ['*.jar'])
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += ['-proc:none']
 }
 
 processResources {
@@ -79,7 +86,9 @@ jar {
                 "Specification-Version"   : "1",
                 "Implementation-Title"    : project.name,
                 "Implementation-Version"  : project.jar.archiveVersion,
-                "Implementation-Vendor"   : mod_authors
+                "Implementation-Vendor"   : mod_authors,
+                // Forge 1.16.5 finds a mod's mixin configs through this manifest attribute.
+                "MixinConfigs"            : "${mod_id}.mixins.json"
         ])
     }
 }
