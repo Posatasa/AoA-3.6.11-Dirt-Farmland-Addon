@@ -3,7 +3,7 @@
 Adds a farmland block for every dirt block in [Advent of Ascension 3](https://github.com/Tslat/Advent-Of-Ascension)
 **1.16.5-3.6.11**, so a hoe works on AoA soil the same way it works on vanilla dirt.
 
-**Download:** [`dist/aoa3farmland-1.0.3.jar`](dist/aoa3farmland-1.0.3.jar) — drop it into `mods/`
+**Download:** [`dist/aoa3farmland-1.0.4.jar`](dist/aoa3farmland-1.0.4.jar) — drop it into `mods/`
 (checksums in [`dist/SHA256SUMS.txt`](dist/SHA256SUMS.txt)).
 
 ## 1. What it adds
@@ -73,7 +73,7 @@ project is not affiliated with or endorsed by Tslat. This add-on itself is MIT �
 为 [虚无世界 3](https://github.com/Tslat/Advent-Of-Ascension) **1.16.5-3.6.11** 的每一种泥土
 方块添加了对应的耕地变种，让锄头在虚无世界的泥土上也能像在原版泥土上一样使用。
 
-**下载：** [`dist/aoa3farmland-1.0.3.jar`](dist/aoa3farmland-1.0.3.jar)，放进 `mods/` 即可。
+**下载：** [`dist/aoa3farmland-1.0.4.jar`](dist/aoa3farmland-1.0.4.jar)，放进 `mods/` 即可。
 
 1. **加了什么**：为 AoA 自己放进 `forge:dirt` 标签的全部泥土各加一块耕地，共 11 块，放在独立的
    创造模式物品栏「虚无世界耕地」中，带中英文名称。性质完全继承原版耕地（同一套湿度、干燥、踩踏
@@ -123,6 +123,12 @@ throw on).
 
 ## Changelog
 
+- **1.0.4** — fixed a server crash when bone-mealing a melon/pumpkin stem on this farmland
+  (NoSuchFieldError: MOISTURE). isFertile reads the inherited FarmlandBlock.MOISTURE
+  constant, which compiles to a reference whose owner is *our* class; the remapper only walked the
+  hierarchy of Minecraft classes, so it never resolved it. Inherited members now resolve through
+  our classes' own supertypes too, and the reference check no longer skips references that point at
+  our own classes - which is exactly how this one escaped.
 - **1.0.3** — fixed a crash when opening the creative inventory. The creative tab's makeIcon
   override had been left with its MCP name by the build's remapper, so the tab class still had an
   unimplemented abstract method and the game died with AbstractMethodError the moment the tab was

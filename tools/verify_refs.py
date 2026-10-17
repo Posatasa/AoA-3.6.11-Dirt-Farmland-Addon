@@ -192,7 +192,11 @@ def check(remapped_dir, srg_jar, extra_jars=()):
     srg.update(own)
 
     def in_scope(owner):
-        return owner.startswith(("net/minecraft/", "net/minecraftforge/"))
+        # Our own classes have to be checked too. A reference whose owner is one of our classes
+        # (an inherited member referenced through the subclass) is just as much a remapping result
+        # as one against a Minecraft class - and skipping them is how a `NoSuchFieldError: MOISTURE`
+        # got past this check once already.
+        return owner.startswith(("net/minecraft/", "net/minecraftforge/")) or owner in own
 
     problems = []
     checked = 0

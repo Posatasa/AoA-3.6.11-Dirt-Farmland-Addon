@@ -148,7 +148,32 @@ class Mappings:
         self.fields = {}                        # ("a/b/C", "name") -> "field_1"
         self.methods = {}                       # ("a/b/C", "name", "(params)") -> ("func_1", descriptor)
         self.hierarchy = Hierarchy(hierarchy_jar) if hierarchy_jar else None
+        # Supertypes of the classes being remapped. The jar hierarchy does not know them, but they
+        # are needed all the same: `state.getValue(MOISTURE)` compiles to a reference whose owner is
+        # *our* class, and only walking up from there finds FarmlandBlock#MOISTURE.
+        self.local_supertypes = {}              # "a/b/C" -> [supertypes]
         self._parse(tsrg_path)
+
+    def register_local(self, name, supertypes):
+        self.local_supertypes[name] = [s for s in supertypes if s]
+
+    def _find_declaring(self, starts, name, params):
+        """Walks the jar hierarchy from each of `starts` and returns the declaring class."""
+        if not self.hierarchy:
+            return None
+        seen = set()
+        stack = [s for s in starts if s]
+        while stack:
+            current = stack.pop(0)
+            if current in seen:
+                continue
+            seen.add(current)
+            if (name, params) in self.hierarchy.members.get(current, ()):
+                return current
+            if current in self.hierarchy.supers:
+                stack.append(self.hierarchy.supers[current])
+            stack.extend(self.hierarchy.interfaces.get(current, ()))
+        return None
 
     @staticmethod
     def params(descriptor):
@@ -193,10 +218,10 @@ class Mappings:
         key = (owner, name)
         if key in self.fields:
             return self.fields[key]
-        if self.hierarchy:
-            declared = self.hierarchy.declaring_class(owner, name)
-            if declared is not None:
-                return self.fields.get((declared, name), name)
+        starts = self.local_supertypes.get(owner, [owner])
+        declared = self._find_declaring(starts, name, None)
+        if declared is not None:
+            return self.fields.get((declared, name), name)
         return name
 
     def map_method(self, owner, name, descriptor):
@@ -211,7 +236,8 @@ class Mappings:
         params = self.params(descriptor)
         entry = self.methods.get((owner, name, params))
         if entry is None and self.hierarchy:
-            declared = self.hierarchy.declaring_class(owner, name, params)
+            starts = self.local_supertypes.get(owner, [owner])
+            declared = self._find_declaring(starts, name, params)
             if declared is not None:
                 entry = self.methods.get((declared, name, params))
         if entry is None:
@@ -229,30 +255,20 @@ class Mappings:
         entry = self.methods.get((owner, name, params))
         if entry is not None:
             return entry[0]
-        if not self.hierarchy:
-            return name
-        for start in supertypes:
-            if not start:
-                continue
-            declared = self.hierarchy.declaring_class(start, name, params)
-            if declared is not None:
-                found = self.methods.get((declared, name, params))
-                if found is not None:
-                    return found[0]
+        declared = self._find_declaring(supertypes, name, params)
+        if declared is not None:
+            found = self.methods.get((declared, name, params))
+            if found is not None:
+                return found[0]
         return name
 
     def map_declared_field(self, owner, name, supertypes):
         key = (owner, name)
         if key in self.fields:
             return self.fields[key]
-        if not self.hierarchy:
-            return name
-        for start in supertypes:
-            if not start:
-                continue
-            declared = self.hierarchy.declaring_class(start, name, None)
-            if declared is not None:
-                return self.fields.get((declared, name), name)
+        declared = self._find_declaring(supertypes, name, None)
+        if declared is not None:
+            return self.fields.get((declared, name), name)
         return name
 
 
@@ -465,6 +481,16 @@ def remap_class_bytes(data, mappings):
 
 
 def remap_tree(source_dir, target_dir, mappings, verbose=False):
+    # Register the classes being remapped before touching any of them: a reference can name one of
+    # our classes as the owner of an inherited member, and resolving that needs its supertypes.
+    for root, _, files in os.walk(source_dir):
+        for filename in files:
+            if not filename.endswith(".class"):
+                continue
+            with open(os.path.join(root, filename), "rb") as fh:
+                cls = ClassFile(fh.read())
+            mappings.register_local(cls.this_name(), [cls.super_name] + cls.interface_names())
+
     count = 0
     for root, _, files in os.walk(source_dir):
         for filename in files:
