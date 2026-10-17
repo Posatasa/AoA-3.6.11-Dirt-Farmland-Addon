@@ -218,6 +218,45 @@ def verify_overrides(staging, mappings):
     print("verified %d overridden member(s) carry their SRG names" % checked)
 
 
+def verify_block_properties(staging):
+    """Checks that the farmland blocks are built with vanilla farmland's properties.
+
+    This exists because of a silent failure that shipped: the blocks were created without
+    `randomTicks()`, so they never received random ticks, `FarmlandBlock#randomTick` never ran,
+    moisture could never change, and every block stayed bone dry forever - no water nearby made any
+    difference, and nothing logged an error. A class-file check cannot see that, so the required
+    property chain is asserted here instead.
+
+    The method references are read from the *pre-remap* class, where the builders still carry their
+    MCP names.
+    """
+    REQUIRED = ("randomTicks", "strength", "sound", "isSuffocating", "isViewBlocking")
+    path = os.path.join(staging, "classes-mcp", "com", "posatasa", "aoa3farmland",
+                        "FarmlandBlocks.class")
+    with open(path, "rb") as fh:
+        cls = remap.ClassFile(fh.read())
+
+    owner_wanted = "net/minecraft/block/AbstractBlock$Properties"
+    found = set()
+    for i in range(1, cls.count):
+        entry = cls.entries[i]
+        if entry is None or entry[0] != remap.CONSTANT_METHODREF:
+            continue
+        payload = entry[1]
+        owner = cls.utf8(cls.u2(cls.entries[cls.u2(payload)][1]))
+        if owner != owner_wanted:
+            continue
+        nat_payload = cls.entries[cls.u2(payload, 2)][1]
+        found.add(cls.utf8(cls.u2(nat_payload)))
+
+    missing = [name for name in REQUIRED if name not in found]
+    if missing:
+        raise SystemExit("farmland is missing vanilla farmland's properties: %s. Without "
+                         "randomTicks() the block never ticks, so its moisture can never change "
+                         "and it always looks bone dry." % ", ".join(missing))
+    print("farmland properties include vanilla's own chain (%s)" % ", ".join(REQUIRED))
+
+
 def verify_refmap(mappings, tsrg_path, srg_jar):
     """Checks that every name in the committed mixin refmap is the right SRG name.
 
@@ -431,6 +470,7 @@ def build(staging, out_jar):
     print("no AoA classes referenced by any built class")
 
     verify_overrides(staging, mappings)
+    verify_block_properties(staging)
 
     # A mixin that names the wrong SRG method fails at class-transform time, i.e. it takes the
     # game down at startup. The refmap is the only place those names live, so check every entry

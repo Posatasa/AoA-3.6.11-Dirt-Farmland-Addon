@@ -3,7 +3,7 @@
 Adds a farmland block for every dirt block in [Advent of Ascension 3](https://github.com/Tslat/Advent-Of-Ascension)
 **1.16.5-3.6.11**, so a hoe works on AoA soil the same way it works on vanilla dirt.
 
-**Download:** [`dist/aoa3farmland-1.1.0.jar`](dist/aoa3farmland-1.1.0.jar) — drop it into `mods/`
+**Download:** [`dist/aoa3farmland-1.1.1.jar`](dist/aoa3farmland-1.1.1.jar) — drop it into `mods/`
 (checksums in [`dist/SHA256SUMS.txt`](dist/SHA256SUMS.txt)).
 
 ## 1. What it adds
@@ -77,7 +77,7 @@ project is not affiliated with or endorsed by Tslat. This add-on itself is MIT �
 为 [虚无世界 3](https://github.com/Tslat/Advent-Of-Ascension) **1.16.5-3.6.11** 的每一种泥土
 方块添加了对应的耕地变种，让锄头在虚无世界的泥土上也能像在原版泥土上一样使用。
 
-**下载：** [`dist/aoa3farmland-1.1.0.jar`](dist/aoa3farmland-1.1.0.jar)，放进 `mods/` 即可。
+**下载：** [`dist/aoa3farmland-1.1.1.jar`](dist/aoa3farmland-1.1.1.jar)，放进 `mods/` 即可。
 
 1. **加了什么**：为 AoA 自己放进 `forge:dirt` 标签的全部泥土各加一块耕地，共 11 块，放在独立的
    创造模式物品栏「虚无世界耕地」中，带中英文名称。性质完全继承原版耕地（同一套湿度、干燥、踩踏
@@ -130,6 +130,11 @@ throw on).
 
 ## Changelog
 
+- **1.1.1** — fixed the moisture never changing. The blocks were created without vanilla
+  farmland's `randomTicks()`, so they never received random ticks: `FarmlandBlock#randomTick` never
+  ran, moisture stayed at 0, and every block looked bone dry no matter how much water was next to
+  it (and never dried back into dirt either). Nothing logged an error, which is why the build now
+  asserts the property chain against vanilla's own. The 8-level appearance from 1.1.0 is unchanged.
 - **1.1.0** — each farmland now has eight top textures, one per moisture level, so it visibly
   dries out and wets up step by step instead of flipping between two looks at level 7. Purely
   asset-side change. The build also gained a resource check: every blockstate, model parent,

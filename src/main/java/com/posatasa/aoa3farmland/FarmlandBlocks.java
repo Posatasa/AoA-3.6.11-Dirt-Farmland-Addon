@@ -117,10 +117,14 @@ public final class FarmlandBlocks {
     }
 
     private static Block.Properties properties() {
-        // Vanilla farmland's own properties: hardness and explosion resistance through one call,
-        // the gravel sound, and the two collision predicates forced true because the block is only
-        // 15/16 of a block tall. The shovel tool type matches vanilla farmland and the AoA soils.
+        // Vanilla farmland's own properties, in vanilla's own order: random ticks first (that is
+        // what runs FarmlandBlock#randomTick, and therefore what makes the block soak up water and
+        // dry out again - without it the moisture can never leave 0), then hardness and explosion
+        // resistance through one call, the gravel sound, and the two collision predicates forced
+        // true because the block is only 15/16 of a block tall. The shovel tool type matches the
+        // AoA soils.
         return Block.Properties.of(Material.DIRT)
+                .randomTicks()
                 .strength(0.6F)
                 .sound(SoundType.GRAVEL)
                 .isSuffocating((state, world, pos) -> true)

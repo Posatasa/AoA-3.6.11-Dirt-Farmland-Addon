@@ -29,8 +29,8 @@ def cached_jars():
     return sorted(jars)
 
 
-def run(program):
-    result = subprocess.run([JAVA, "-cp", CLASSPATH, program], text=True)
+def run(program, cp):
+    result = subprocess.run([JAVA, "-cp", cp, program], text=True)
     return result.returncode
 
 
@@ -44,19 +44,20 @@ if __name__ == "__main__":
             raise SystemExit("expected exactly one jar in dist/, found %r" % jars)
         JAR = os.path.join(dist, jars[0])
     print("verifying", JAR)
+
     stage = os.path.join(ROOT, "build", "verify")
     os.makedirs(stage, exist_ok=True)
     JAVAC = os.path.join(JDK8, "bin", "javac.exe")
     JAVA = os.path.join(JDK8, "bin", "java.exe")
     sources = [os.path.join(HERE, name) for name in ("VerifyAgainstSrg.java",
                                                      "VerifyListeners.java")]
-    subprocess.run([JAVAC, "-nowarn", "-d", stage] + sources, check=True)
-    CLASSPATH = os.pathsep.join([stage, JAR, SRG_JAR] + cached_jars())
+    subprocess.run([JAVAC, "-nowarn", "-proc:none", "-d", stage] + sources, check=True)
+    CP = os.pathsep.join([stage, JAR, SRG_JAR] + cached_jars())
 
     failures = 0
     print("== bytecode links against the SRG classpath ==")
-    failures += run("VerifyAgainstSrg") != 0
+    failures += run("VerifyAgainstSrg", CP) != 0
     print()
     print("== every listener is registrable with addListener ==")
-    failures += run("VerifyListeners") != 0
+    failures += run("VerifyListeners", CP) != 0
     raise SystemExit(1 if failures else 0)
