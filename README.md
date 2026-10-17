@@ -3,7 +3,7 @@
 Adds a farmland block for every dirt block in [Advent of Ascension 3](https://github.com/Tslat/Advent-Of-Ascension)
 **1.16.5-3.6.11**, so a hoe works on AoA soil the same way it works on vanilla dirt.
 
-**Download:** [`dist/aoa3farmland-1.1.2.jar`](dist/aoa3farmland-1.1.2.jar) — drop it into `mods/`
+**Download:** [`dist/aoa3farmland-1.1.3.jar`](dist/aoa3farmland-1.1.3.jar) — drop it into `mods/`
 (checksums in [`dist/SHA256SUMS.txt`](dist/SHA256SUMS.txt)).
 
 ## 1. What it adds
@@ -28,7 +28,9 @@ in their own creative tab ("AoA3 Farmland" / 虚无世界耕地) and in English 
 Each one behaves exactly like vanilla farmland — same block class, same moisture and drying
 rules, same trampling and crop support — with three differences:
 
-- Breaking it (or trampling it) gives back the AoA soil it came from, not `minecraft:dirt`.
+- Breaking it gives back the AoA soil it came from, not `minecraft:dirt` - and so does every way
+  the block can be destroyed on its own: trampling, drying out when there is no water, and having a
+  block placed on top of it.
 - Only the top face is a tilled texture, exactly like vanilla farmland; the sides and bottom use
   AoA's own soil texture. That texture is *referenced* by resource location, not copied, so it
   always matches the AoA version installed.
@@ -76,7 +78,7 @@ project is not affiliated with or endorsed by Tslat. This add-on itself is MIT �
 为 [虚无世界 3](https://github.com/Tslat/Advent-Of-Ascension) **1.16.5-3.6.11** 的每一种泥土
 方块添加了对应的耕地变种，让锄头在虚无世界的泥土上也能像在原版泥土上一样使用。
 
-**下载：** [`dist/aoa3farmland-1.1.2.jar`](dist/aoa3farmland-1.1.2.jar)，放进 `mods/` 即可。
+**下载：** [`dist/aoa3farmland-1.1.3.jar`](dist/aoa3farmland-1.1.3.jar)，放进 `mods/` 即可。
 
 1. **加了什么**：为 AoA 自己放进 `forge:dirt` 标签的全部泥土各加一块耕地，共 11 块，放在独立的
    创造模式物品栏「虚无世界耕地」中，带中英文名称。性质完全继承原版耕地（同一套湿度、干燥、踩踏
@@ -128,6 +130,10 @@ throw on).
 
 ## Changelog
 
+- **1.1.3** — fixed farmland turning into vanilla dirt when it dried out or when a block was placed
+  on top. Vanilla destroys farmland from three places and does it through a *static* helper that
+  names `minecraft:dirt` directly, so no virtual dispatch reaches it; only the trampling path had
+  been overridden. All three are now overridden, and the build asserts that they are.
 - **1.1.2** — back to vanilla's two appearances: one top texture for moisture 0-6 and a darker
   one at 7, instead of the eight-step ramp from 1.1.0. The `randomTicks()` fix from 1.1.1 stays,
   so the block still actually dries out and wets up.

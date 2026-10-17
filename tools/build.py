@@ -257,6 +257,31 @@ def verify_block_properties(staging):
     print("farmland properties include vanilla's own chain (%s)" % ", ".join(REQUIRED))
 
 
+def verify_turn_to_soil_paths(staging):
+    """Checks that all three ways farmland can be destroyed are overridden.
+
+    Vanilla turns farmland into dirt from three places - trampling (`fallOn`), a block being placed
+    on top (`tick`), and drying out (`randomTick`) - and it does so through a *static* helper that
+    names `Blocks.DIRT` directly. Static calls have no virtual dispatch, so each of those three
+    methods has to be overridden for the block to become its own soil. Missing one is silent: the
+    block simply reverts to vanilla dirt on that particular path, which is exactly the bug this
+    check exists for.
+    """
+    REQUIRED = ("fallOn", "tick", "randomTick")
+    path = os.path.join(staging, "classes-mcp", "com", "posatasa", "aoa3farmland", "block",
+                        "AoAFarmlandBlock.class")
+    with open(path, "rb") as fh:
+        cls = remap.ClassFile(fh.read())
+    declared = {name for name, _ in cls.declared_members()}
+
+    missing = [name for name in REQUIRED if name not in declared]
+    if missing:
+        raise SystemExit("AoAFarmlandBlock does not override %s; vanilla would turn these blocks "
+                         "into minecraft:dirt on that path instead of their AoA soil."
+                         % ", ".join(missing))
+    print("block reverts to its soil on all three vanilla paths (%s)" % ", ".join(REQUIRED))
+
+
 def verify_refmap(mappings, tsrg_path, srg_jar):
     """Checks that every name in the committed mixin refmap is the right SRG name.
 
@@ -471,6 +496,7 @@ def build(staging, out_jar):
 
     verify_overrides(staging, mappings)
     verify_block_properties(staging)
+    verify_turn_to_soil_paths(staging)
 
     # A mixin that names the wrong SRG method fails at class-transform time, i.e. it takes the
     # game down at startup. The refmap is the only place those names live, so check every entry
