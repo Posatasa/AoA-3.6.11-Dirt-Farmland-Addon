@@ -287,6 +287,99 @@ def verify_refmap(mappings, tsrg_path, srg_jar):
     print("mixin refmap verified against the TSRG tables and the SRG jar")
 
 
+def verify_resources(resources_dir, aoa_jar):
+    """Checks that every blockstate, model, texture and translation key actually resolves.
+
+    The resources are generated, and there are a lot of them (one model and one texture per soil
+    per moisture level), so a typo in the generator would otherwise only show up as a missing model
+    in game. References into AoA's namespace are checked against the AoA jar when one was found.
+    """
+    assets_root = os.path.join(resources_dir, "assets", "aoa3farmland")
+    ours = set()
+    for root, _, files in os.walk(assets_root):
+        for filename in files:
+            ours.add(os.path.relpath(os.path.join(root, filename), assets_root).replace(os.sep, "/"))
+
+    aoa_assets = set()
+    if aoa_jar and os.path.isfile(aoa_jar):
+        with zipfile.ZipFile(aoa_jar) as jar:
+            for entry in jar.namelist():
+                if entry.startswith("assets/aoa3/"):
+                    aoa_assets.add(entry[len("assets/aoa3/"):])
+
+    problems = []
+
+    def resolves(reference, kind):
+        """Resolves "namespace:path" to a file under assets/<ns>/<kind>/ — `kind` is the asset
+        root ("models" or "textures"), and the reference path already carries its subfolder."""
+        ns, _, path = reference.partition(":")
+        if ns == "aoa3farmland":
+            wanted = "%s/%s%s" % (kind, path, _extension(kind))
+            return wanted in ours, wanted
+        if ns == "aoa3":
+            wanted = "%s/%s%s" % (kind, path, _extension(kind))
+            if not aoa_assets:
+                return True, wanted          # AoA jar unavailable: cannot check
+            return wanted in aoa_assets, wanted
+        return True, path                    # vanilla or another mod: out of scope
+
+    def _extension(kind):
+        return ".png" if kind == "textures" else ".json"
+
+    # blockstates -> models
+    for entry in sorted(ours):
+        if not entry.startswith("blockstates/"):
+            continue
+        with open(os.path.join(assets_root, entry), encoding="utf-8") as fh:
+            data = json.load(fh)
+        for key, variant in data.get("variants", {}).items():
+            model = variant["model"] if isinstance(variant, dict) else variant[0]["model"]
+            ok, wanted = resolves(model, "models")
+            if not ok:
+                problems.append("%s: %s -> missing %s" % (entry, key, wanted))
+
+    # block and item models -> parents and textures
+    for entry in sorted(ours):
+        if not entry.startswith("models/"):
+            continue
+        with open(os.path.join(assets_root, entry), encoding="utf-8") as fh:
+            data = json.load(fh)
+        parent = data.get("parent")
+        if parent and parent.partition(":")[0] == "aoa3farmland":
+            ok, wanted = resolves(parent, "models")
+            if not ok:
+                problems.append("%s: parent -> missing %s" % (entry, wanted))
+        for slot, texture in data.get("textures", {}).items():
+            ok, wanted = resolves(texture, "textures")
+            if not ok:
+                problems.append("%s: texture '%s' -> missing %s" % (entry, slot, wanted))
+
+    # every block needs a name in every language file
+    lang_dir = os.path.join(assets_root, "lang")
+    languages = {}
+    for entry in sorted(ours):
+        if entry.startswith("lang/") and entry.endswith(".json"):
+            with open(os.path.join(assets_root, entry), encoding="utf-8") as fh:
+                languages[entry] = json.load(fh)
+    if not languages:
+        problems.append("no language files")
+    blocks = [e[len("blockstates/"):-len(".json")] for e in sorted(ours)
+              if e.startswith("blockstates/")]
+    for language, table in languages.items():
+        if "itemGroup.aoa3farmland" not in table:
+            problems.append("%s: missing itemGroup.aoa3farmland" % language)
+        for block in blocks:
+            if "block.aoa3farmland." + block not in table:
+                problems.append("%s: missing name for %s" % (language, block))
+
+    for problem in problems:
+        print("  " + problem)
+    if problems:
+        raise SystemExit("%d broken resource reference(s); refusing to package" % len(problems))
+    print("verified %d assets (%d blocks, %d languages)"
+          % (len(ours), len(blocks), len(languages)))
+
+
 def build(staging, out_jar):
     classpath_parts = [MCP_JAR] + cached_jars()
     aoa = find_aoa_jar(args.aoa_jar)
@@ -347,6 +440,7 @@ def build(staging, out_jar):
     resources = os.path.join(staging, "resources")
     shutil.copytree(os.path.join(ROOT, "src", "main", "resources"), resources)
     props = expand_mods_toml(resources)
+    verify_resources(resources, aoa)
 
     manifest = (
         "Manifest-Version: 1.0\n"

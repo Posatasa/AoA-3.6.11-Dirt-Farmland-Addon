@@ -4,22 +4,22 @@
       "model": "aoa3farmland:block/fungal_farmland"
     },
     "moisture=1": {
-      "model": "aoa3farmland:block/fungal_farmland"
+      "model": "aoa3farmland:block/fungal_farmland_moist_1"
     },
     "moisture=2": {
-      "model": "aoa3farmland:block/fungal_farmland"
+      "model": "aoa3farmland:block/fungal_farmland_moist_2"
     },
     "moisture=3": {
-      "model": "aoa3farmland:block/fungal_farmland"
+      "model": "aoa3farmland:block/fungal_farmland_moist_3"
     },
     "moisture=4": {
-      "model": "aoa3farmland:block/fungal_farmland"
+      "model": "aoa3farmland:block/fungal_farmland_moist_4"
     },
     "moisture=5": {
-      "model": "aoa3farmland:block/fungal_farmland"
+      "model": "aoa3farmland:block/fungal_farmland_moist_5"
     },
     "moisture=6": {
-      "model": "aoa3farmland:block/fungal_farmland"
+      "model": "aoa3farmland:block/fungal_farmland_moist_6"
     },
     "moisture=7": {
       "model": "aoa3farmland:block/fungal_farmland_moist"
