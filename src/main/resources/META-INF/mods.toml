@@ -1,0 +1,46 @@
+modLoader="javafml"
+loaderVersion="[36,)"
+license="MIT"
+
+[[mods]]
+modId="aoa3farmland"
+version="${version}"
+displayName="AoA3 Farmland Addon"
+authors="Posatasa"
+description='''
+A small add-on for Advent of Ascension 3 (Minecraft 1.16.5, AoA 3.6.11) that adds a farmland
+variant for every dirt-type block AoA adds to the forge:dirt tag, so hoes work on AoA soil the
+same way they work on vanilla dirt.
+
+Each farmland behaves exactly like vanilla farmland (same block class, same moisture and
+trampling rules), drops its own AoA soil when broken, and is textured with the vanilla farmland
+pattern recoloured to that soil's palette.
+
+It contains none of AoA's code or assets.
+'''
+
+[[dependencies.aoa3farmland]]
+    modId="forge"
+    mandatory=true
+    versionRange="[36,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.aoa3farmland]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.16.5,1.17)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.aoa3farmland]]
+    modId="aoa3"
+    mandatory=true
+    # AoA versions the whole build, so the mod version literally reads "1.16.5-3.6.11" and the
+    # "1.16.5-" prefix cannot be dropped: version comparison walks the components left to right,
+    # so a range such as "[3.6.11,)" would start at 3 and sort "1.16.5-3.6.11" *below* it, and
+    # the dependency would silently never be satisfied. The upper bound keeps this add-on off
+    # AoA versions whose block registry it has not been checked against.
+    versionRange="[1.16.5-3.6.11,1.16.5-3.7.0)"
+    ordering="AFTER"
+    side="BOTH"

@@ -1,0 +1,17 @@
+{
+  "_comment": "The AoA farmland this add-on adds still counts as dirt.",
+  "replace": false,
+  "values": [
+    "aoa3farmland:aromatic_farmland",
+    "aoa3farmland:blackened_farmland",
+    "aoa3farmland:candied_farmland",
+    "aoa3farmland:celevian_farmland",
+    "aoa3farmland:coral_farmland",
+    "aoa3farmland:creep_farmland",
+    "aoa3farmland:fungal_farmland",
+    "aoa3farmland:greckon_farmland",
+    "aoa3farmland:lunalyte_farmland",
+    "aoa3farmland:lunasole_farmland",
+    "aoa3farmland:weightless_farmland"
+  ]
+}

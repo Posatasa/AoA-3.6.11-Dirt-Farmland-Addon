@@ -1,0 +1,132 @@
+buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net/' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.1.+', changing: true
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'eclipse'
+
+version = mod_version
+group = mod_group
+archivesBaseName = mod_id
+
+sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8'
+
+minecraft {
+    mappings channel: 'official', version: '1.16.5'
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        server {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+repositories {
+    maven { url = 'https://maven.minecraftforge.net/' }
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+    // Optional: drop the real AoA jar (aoa3-1.16.5-3.6.11.jar) into libs/ for compile-time checking
+    // of the AoA classes this mod talks to (its item groups). It is never packaged into the jar.
+    compileOnly fileTree(dir: 'libs', include: ['*.jar'])
+}
+
+processResources {
+    filesMatching('META-INF/mods.toml') {
+        expand 'version': project.version, 'mod_id': mod_id, 'mod_name': mod_name,
+                'mod_license': mod_license, 'mod_authors': mod_authors
+    }
+}
+
+jar {
+    // The built jar is committed to dist/, so make the output as reproducible as we can: no
+    // wall-clock timestamp in the manifest, and a stable entry order/timestamps inside the
+    // archive. Anyone can rebuild and compare the result against dist/SHA256SUMS.txt.
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+
+    manifest {
+        attributes([
+                "Specification-Title"     : mod_id,
+                "Specification-Vendor"    : mod_authors,
+                "Specification-Version"   : "1",
+                "Implementation-Title"    : project.name,
+                "Implementation-Version"  : project.jar.archiveVersion,
+                "Implementation-Vendor"   : mod_authors
+        ])
+    }
+}
+
+jar.finalizedBy('reobfJar')
+
+// Ship the built jar inside the repository, under dist/. That directory is deliberately NOT in
+// .gitignore, so a plain `git push` is enough to hand other people a ready-to-use mod - they do
+// not need a JDK, Gradle or an internet connection to get a working file out of this repo.
+//
+// The jar is routed through a Zip task instead of a plain file copy for two reasons:
+//
+//   * `reobfJar` rewrites the jar task's output *in place*, so that file is not an output Gradle
+//     can attribute to a single task, and a downstream task reading it can be reported up to date
+//     while its content has already changed underneath. reobfJar's own declared output does not
+//     have that problem.
+//   * SpecialSource stamps every entry with the current wall-clock time, so rebuilding unchanged
+//     source still yields a different jar. Re-archiving here with a stable entry order and no
+//     timestamps makes the committed file byte-identical across rebuilds.
+def reobfJarOutput = layout.buildDirectory.file('reobfJar/output.jar')
+
+tasks.register('dist', Zip) {
+    group = 'build'
+    description = 'Publishes the reobfuscated jar to dist/ so that it can be committed and downloaded.'
+    dependsOn tasks.named('reobfJar')
+
+    archiveFileName = "${mod_id}-${project.version}.jar"
+    destinationDirectory = layout.projectDirectory.dir('dist')
+
+    from({ zipTree(reobfJarOutput.get().asFile) })
+
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+
+    doFirst {
+        if (!reobfJarOutput.get().asFile.isFile()) {
+            throw new GradleException(
+                    "ForgeGradle did not produce ${reobfJarOutput.get().asFile}; its output layout " +
+                            "may have changed. Update the 'dist' task to point at the new location.")
+        }
+    }
+}
+
+tasks.named('build') {
+    dependsOn tasks.named('dist')
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
