@@ -39,7 +39,22 @@ SRG_JAR = os.path.join(
 JDK8 = r"C:\Program Files\Java\jdk-1.8"
 
 MOD_ID = "aoa3farmland"
-VERSION = "1.0.0"
+
+
+def read_properties():
+    """gradle.properties is the single source of truth for the version and the mod metadata,
+    so the Gradle build and this script can never disagree."""
+    props = {}
+    with open(os.path.join(ROOT, "gradle.properties"), encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
+                props[key.strip()] = value.strip()
+    return props
+
+
+VERSION = read_properties()["mod_version"]
 
 
 def find_aoa_jar(explicit):
@@ -83,13 +98,7 @@ def javac_sources(source_dir, out_dir, classpath):
 
 def expand_mods_toml(resources_dir):
     """Handles the ${version} style placeholders Gradle's processResources would fill in."""
-    props = {}
-    with open(os.path.join(ROOT, "gradle.properties"), encoding="utf-8") as fh:
-        for line in fh:
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                key, value = line.split("=", 1)
-                props[key.strip()] = value.strip()
+    props = read_properties()
     path = os.path.join(resources_dir, "META-INF", "mods.toml")
     with open(path, encoding="utf-8") as fh:
         text = fh.read()

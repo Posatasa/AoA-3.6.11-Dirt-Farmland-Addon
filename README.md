@@ -3,7 +3,7 @@
 Adds a farmland block for every dirt block in [Advent of Ascension 3](https://github.com/Tslat/Advent-Of-Ascension)
 **1.16.5-3.6.11**, so a hoe works on AoA soil the same way it works on vanilla dirt.
 
-**Download:** [`dist/aoa3farmland-1.0.0.jar`](dist/aoa3farmland-1.0.0.jar) — drop it into `mods/`
+**Download:** [`dist/aoa3farmland-1.0.1.jar`](dist/aoa3farmland-1.0.1.jar) — drop it into `mods/`
 (checksums in [`dist/SHA256SUMS.txt`](dist/SHA256SUMS.txt)).
 
 ## 1. What it adds
@@ -63,7 +63,7 @@ project is not affiliated with or endorsed by Tslat. This add-on itself is MIT �
 为 [虚无世界 3](https://github.com/Tslat/Advent-Of-Ascension) **1.16.5-3.6.11** 的每一种泥土
 方块添加了对应的耕地变种，让锄头在虚无世界的泥土上也能像在原版泥土上一样使用。
 
-**下载：** [`dist/aoa3farmland-1.0.0.jar`](dist/aoa3farmland-1.0.0.jar)，放进 `mods/` 即可。
+**下载：** [`dist/aoa3farmland-1.0.1.jar`](dist/aoa3farmland-1.0.1.jar)，放进 `mods/` 即可。
 
 1. **加了什么**：为 AoA 自己放进 `forge:dirt` 标签的全部泥土各加一块耕地，共 11 块；性质完全
    继承原版耕地（同一套湿度、干燥、踩踏与作物规则），区别只有两点：破坏或被踩踏时掉落的是
@@ -101,4 +101,13 @@ python tools/generate_resources.py
 
 The remaining helpers are `tools/remap.py` (MCP → SRG), `tools/verify_refs.py` (reference check)
 and `tools/verify_link.py` (loads the built classes against the SRG classpath, so the JVM
-verifier has the final say).
+verifier has the final say; it also rejects listener methods that Forge's `addListener` would
+throw on).
+
+## Changelog
+
+- **1.0.1** — fixed two startup/runtime bugs: registering a *generic* event listener
+  (`RegistryEvent.Register`) through `addListener`, which Forge rejects while the mod is being
+  constructed; and tilling, which was hooked on the farmland block instead of on the AoA block
+  being tilled and so never ran. Tilling now goes through `UseHoeEvent`.
+- **1.0.0** — first release.

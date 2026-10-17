@@ -1,6 +1,11 @@
 """Loads the built classes with the full SRG classpath, so the JVM verifier resolves every
-reference the mod makes - the same resolution the game performs at startup."""
-import glob
+reference the mod makes - the same resolution the game performs at startup.
+
+Also applies Forge's own listener rule: `EventBus#addListener` rejects any event that extends
+`GenericEvent`, and it does so while the mod is being constructed (i.e. it takes the game down at
+startup). Both checks are needed - the first catches broken bytecode, the second catches a valid
+class that registers itself wrongly.
+"""
 import os
 import subprocess
 import sys
@@ -24,15 +29,34 @@ def cached_jars():
     return sorted(jars)
 
 
+def run(program):
+    result = subprocess.run([JAVA, "-cp", CLASSPATH, program], text=True)
+    return result.returncode
+
+
 if __name__ == "__main__":
-    jar = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
-        ROOT, "dist", "aoa3farmland-1.0.0.jar")
+    if len(sys.argv) > 1:
+        JAR = sys.argv[1]
+    else:
+        dist = os.path.join(ROOT, "dist")
+        jars = sorted(n for n in os.listdir(dist) if n.endswith(".jar"))
+        if len(jars) != 1:
+            raise SystemExit("expected exactly one jar in dist/, found %r" % jars)
+        JAR = os.path.join(dist, jars[0])
+    print("verifying", JAR)
     stage = os.path.join(ROOT, "build", "verify")
     os.makedirs(stage, exist_ok=True)
-    javac = os.path.join(JDK8, "bin", "javac.exe")
-    java = os.path.join(JDK8, "bin", "java.exe")
-    subprocess.run([javac, "-nowarn", "-d", stage,
-                    os.path.join(HERE, "VerifyAgainstSrg.java")], check=True)
-    classpath = os.pathsep.join([stage, jar, SRG_JAR] + cached_jars())
-    result = subprocess.run([java, "-cp", classpath, "VerifyAgainstSrg"], text=True)
-    raise SystemExit(result.returncode)
+    JAVAC = os.path.join(JDK8, "bin", "javac.exe")
+    JAVA = os.path.join(JDK8, "bin", "java.exe")
+    sources = [os.path.join(HERE, name) for name in ("VerifyAgainstSrg.java",
+                                                     "VerifyListeners.java")]
+    subprocess.run([JAVAC, "-nowarn", "-d", stage] + sources, check=True)
+    CLASSPATH = os.pathsep.join([stage, JAR, SRG_JAR] + cached_jars())
+
+    failures = 0
+    print("== bytecode links against the SRG classpath ==")
+    failures += run("VerifyAgainstSrg") != 0
+    print()
+    print("== every listener is registrable with addListener ==")
+    failures += run("VerifyListeners") != 0
+    raise SystemExit(1 if failures else 0)

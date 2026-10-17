@@ -82,6 +82,7 @@ class Hierarchy:
 
     def __init__(self, mcp_jar):
         self.supers = {}        # class -> superclass
+        self.interfaces = {}    # class -> list of direct interfaces
         self.members = {}       # class -> set of (name, params or None)
         self._load(mcp_jar)
 
@@ -98,20 +99,31 @@ class Hierarchy:
                 name = cls.this_name()
                 if cls.super_name:
                     self.supers[name] = cls.super_name
+                self.interfaces[name] = cls.interface_names()
                 # Read the class's own field and method tables rather than its constant pool: the
                 # pool also names everything the class *calls*, which would make an inherited call
                 # look like a local declaration.
                 self.members[name] = cls.declared_members()
 
     def declaring_class(self, owner, name, params=None):
-        """The class in the chain that declares this member, or None."""
+        """The class or interface in the chain that declares this member, or None.
+
+        Interfaces matter here just as much as superclasses: `World` does not declare
+        `isEmptyBlock`, it inherits it from `IBlockReader`, and only `IBlockReader`'s entry in the
+        TSRG tables will produce the SRG name.
+        """
         seen = set()
-        current = owner
-        while current and current not in seen:
+        stack = [owner]
+        while stack:
+            current = stack.pop(0)                 # breadth first: nearer declarations win
+            if current in seen:
+                continue
             seen.add(current)
             if (name, params) in self.members.get(current, ()):
                 return current
-            current = self.supers.get(current)
+            if current in self.supers:
+                stack.append(self.supers[current])
+            stack.extend(self.interfaces.get(current, ()))
         return None
 
 
@@ -188,7 +200,14 @@ class Mappings:
         return name
 
     def map_method(self, owner, name, descriptor):
-        """Returns (new name, new descriptor)."""
+        """Returns (new name, new descriptor).
+
+        The descriptor is the *compiled* one with class names mapped, not the descriptor written in
+        the TSRG file. Those two disagree for covariant returns - TSRG records
+        `ItemUseContext.getPos` as returning `Vector3i`, while the method actually returns
+        `BlockPos` - and the descriptor the class file must carry is the one the JVM will resolve
+        against the SRG jar, i.e. the real one.
+        """
         params = self.params(descriptor)
         entry = self.methods.get((owner, name, params))
         if entry is None and self.hierarchy:
@@ -197,8 +216,7 @@ class Mappings:
                 entry = self.methods.get((declared, name, params))
         if entry is None:
             return name, self.map_descriptor(descriptor)
-        srg, official_descriptor = entry
-        return srg, self.map_descriptor(official_descriptor)
+        return entry[0], self.map_descriptor(descriptor)
 
 
 class ClassFile:
@@ -224,6 +242,18 @@ class ClassFile:
         if not self.super_index:
             return None
         return self.utf8(self.u2(self.entries[self.super_index][1]))
+
+    def interface_names(self):
+        """The class's direct interfaces, in declaration order."""
+        pos = self.pool_end + 6
+        count = struct.unpack_from(">H", self.raw, pos)[0]
+        pos += 2
+        names = []
+        for _ in range(count):
+            index = struct.unpack_from(">H", self.raw, pos)[0]
+            pos += 2
+            names.append(self.utf8(self.u2(self.entries[index][1])))
+        return names
 
     def _parse_pool(self):
         pos = 10
