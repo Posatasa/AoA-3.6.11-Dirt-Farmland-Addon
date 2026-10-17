@@ -1,15 +1,18 @@
 """Generates this add-on's blockstates, models, loot tables, tags, lang files and textures.
 
-Textures: vanilla's farmland pattern, recoloured to each AoA soil's palette. Vanilla's farmland
-and farmland_moist textures are the same tiled pattern as vanilla dirt, drawn in a different
-colour, so dividing farmland by the average colour of vanilla dirt yields a reusable
-"tilled" multiplier with a per-channel mean of exactly 1. Multiplying any soil by it gives
-that soil in the vanilla tilled pattern, at the soil's own brightness. The moist texture is that
-result re-shaded at vanilla's moist brightness. Feeding vanilla dirt back through the dry path
-reproduces vanilla farmland.png byte for byte.
+Textures: vanilla farmland's light-and-dark pattern, drawn in each AoA soil's own colour.
 
-The fertilised tops are that same vanilla-derived result, tinted darker and richer, with a few
-compost flecks once fully fertilised. Nothing is derived from AoA's own textures.
+Only vanilla farmland's *luminance* is taken, and it is applied as a per-pixel brightness
+multiplier to the soil's average colour. Vanilla farmland's highlight pixels are slightly cooler
+than its furrows; that is invisible on brown, but multiplied by a saturated soil it becomes blue
+specks - which neither vanilla farmland nor AoA's fertilised farmland has. Keeping the luminance
+alone means a highlight is simply a lighter version of the soil's own colour, so no soil can pick up
+a colour that is not its own. The generator asserts exactly that (a neutral soil must come out
+neutral).
+
+The moist texture is that result re-shaded at vanilla's own moist brightness. The fertilised tops
+are the same thing, darker and slightly richer, at the ratio AoA's own fertilised farmland uses
+(0.89x for fertilised, 0.81x for well fertilised); nothing is painted on top of the vanilla pattern.
 
 The block looks the way vanilla farmland looks: one top texture for moisture 0..6 and a darker one
 at 7. The fertilised block repeats that split per `well_fertilised` state, like AoA's own block.
@@ -24,7 +27,7 @@ import os
 import zipfile
 
 import numpy as np
-from PIL import Image, ImageEnhance
+from PIL import Image
 
 MC_JAR = os.path.expanduser(
     r"~\.gradle\caches\forge_gradle\minecraft_repo\versions\1.16.5\client-extra.jar")
@@ -56,26 +59,18 @@ TAB_ZH = "虚无世界耕地"
 MOISTURE_LEVELS = 8
 WET_LEVEL = MOISTURE_LEVELS - 1
 
-# How much richer the fertilised tops look, relative to the plain tilled texture.
-FERTILISED_BRIGHTNESS = 0.93
-FERTILISED_SATURATION = 1.10
-WELL_BRIGHTNESS = 0.84
-WELL_SATURATION = 1.20
-
-# Fertilised soil is recognisable by its flecks, not by being darker - AoA's own fertilised
-# farmland is the vanilla tilled pattern with pale and green specks scattered over it. These are
-# our own fixed positions (deterministic across runs) and our own colours; the plain block only has
-# a few, the well fertilised one has many more, which is what AoA uses to tell its two states apart.
-_PALE = (175, 185, 190)
-_GREEN = (60, 95, 48)
-_GREY = (112, 112, 112)
-SPECKLES_FERTILISED = (
-    (3, 2, _PALE), (11, 4, _PALE), (6, 7, _GREEN), (1, 11, _PALE), (12, 12, _GREEN), (8, 13, _GREY),
-)
-SPECKLES_WELL = (
-    (3, 2, _PALE), (11, 4, _PALE), (6, 2, _GREEN), (9, 6, _PALE), (2, 7, _GREEN), (13, 8, _PALE),
-    (5, 10, _GREEN), (10, 11, _GREY), (1, 13, _PALE), (7, 14, _GREEN), (14, 14, _GREY),
-)
+# How much darker the fertilised tops are. Vanilla farmland has no flecks at all, and neither does
+# AoA's fertilised farmland in any meaningful amount, so the only honest way to show "fertilised" is
+# the one AoA itself uses: the same tilled pattern, darker. These two numbers are AoA's own measured
+# contrast (its fertilised top is 0.89x and its well fertilised one 0.81x the brightness of vanilla
+# farmland), so the difference reads the same as it does there and nothing invented is painted on top
+# of the vanilla pattern.
+#
+# It is a plain brightness scale on purpose: brightening or saturating would move the hue of the
+# near-grey pixels, and the point of this whole exercise is that every texture stays in its own soil's
+# colour. A hue-preservation check below enforces it.
+FERTILISED_BRIGHTNESS = 0.89
+WELL_BRIGHTNESS = 0.81
 
 
 def fertilised_name(block):
@@ -104,19 +99,9 @@ def clean(directory):
             os.remove(path)
 
 
-def enrich(rgb, brightness, saturation):
-    """Vanilla-derived tinting: no new imagery, just a darker, richer version of the same pixels."""
-    image = ImageEnhance.Color(Image.fromarray(rgb)).enhance(saturation)
-    image = ImageEnhance.Brightness(image).enhance(brightness)
-    return np.asarray(image).astype(np.uint8)
-
-
-def speckle(rgb, specks, blend=0.82):
-    """Scatters the flecks that make fertilised soil recognisable, over the soil's own colour."""
-    out = rgb.astype(np.float64)
-    for x, y, colour in specks:
-        out[y, x] = out[y, x] * (1.0 - blend) + np.array(colour, dtype=np.float64) * blend
-    return np.clip(np.rint(out), 0, 255).astype(np.uint8)
+def darken(rgb, factor):
+    """Scales brightness only, so a fertilised top keeps exactly the soil's own hue."""
+    return np.clip(np.rint(rgb.astype(np.float64) * factor), 0, 255).astype(np.uint8)
 
 
 def generate_textures():
@@ -131,23 +116,38 @@ def generate_textures():
     farmland = load(zm, "assets/minecraft/textures/block/farmland.png")
     farmland_moist = load(zm, "assets/minecraft/textures/block/farmland_moist.png")
 
-    tilled = farmland / dirt.mean(axis=(0, 1), keepdims=True)
-    wet_brightness = farmland_moist.mean() / farmland.mean()
+    def luminance(rgb):
+        return 0.2126 * rgb[:, :, 0] + 0.7152 * rgb[:, :, 1] + 0.0722 * rgb[:, :, 2]
+
+    # The tilled pattern, as a per-pixel brightness multiplier with a mean of 1.
+    #
+    # Only vanilla farmland's *light and dark* is taken, not its colour. Vanilla's highlight pixels
+    # are slightly cooler than its furrows - unnoticeable on brown, but multiplied by a saturated
+    # soil it turns into blue specks, which vanilla farmland has nowhere and AoA's fertilised
+    # farmland does not have either. Keeping the luminance alone means every highlight comes out as
+    # a lighter version of the soil's own colour, which is what "the vanilla pattern in that soil's
+    # palette" actually means.
+    pattern = luminance(farmland) / luminance(farmland).mean()
+    wet_brightness = luminance(farmland_moist).mean() / luminance(farmland).mean()
 
     def recolor(soil, wet):
-        out = soil.mean(axis=(0, 1), keepdims=True) * tilled
+        out = soil.mean(axis=(0, 1), keepdims=True) * pattern[:, :, None]
         if wet:
-            # Re-shade at vanilla's moist brightness. Vanilla's wet texture is darker with slightly
-            # different channel weights, so the colour is kept and only the brightness moves.
-            lum = 0.2126 * out[:, :, 0] + 0.7152 * out[:, :, 1] + 0.0722 * out[:, :, 2]
+            # Re-shade at vanilla's moist brightness: keep the colour, move only the brightness.
+            lum = luminance(out)
             colour = out / np.maximum(lum[:, :, None], 1e-6)
             out = colour * (lum * wet_brightness)[:, :, None]
         return np.clip(np.rint(out), 0, 255).astype(np.uint8)
 
-    # Guard: the dry path must reproduce vanilla farmland exactly on vanilla dirt.
-    assert np.array_equal(recolor(dirt, False), farmland.astype(np.uint8)), \
-        "texture transfer no longer reproduces vanilla farmland"
-    print("texture transfer reproduces vanilla farmland exactly")
+    # The pattern must not carry a colour of its own: a neutral soil has to stay neutral, or that
+    # colour shows up as specks on soils of a different hue. This is what caught the blue dots.
+    neutral = np.full((16, 16, 3), 128.0)
+    spread = np.abs(recolor(neutral, False).astype(np.float64)
+                    - recolor(neutral, False).mean(axis=2, keepdims=True)).max()
+    assert spread <= 1.0, "the tilled pattern carries a colour cast (%.1f)" % spread
+    # And its brightness structure must be vanilla's own, at the same overall level.
+    assert abs(float(pattern.mean()) - 1.0) < 1e-9
+    print("tilled pattern is vanilla farmland's luminance, with no colour of its own")
 
     out_dir = os.path.join(ASSETS, "textures", "block")
     os.makedirs(out_dir, exist_ok=True)
@@ -158,14 +158,10 @@ def generate_textures():
         tops = [
             (model_name(name, "", False), dry),
             (model_name(name, "_moist", False), moist),
-            (model_name(name, "", True), speckle(
-                enrich(dry, FERTILISED_BRIGHTNESS, FERTILISED_SATURATION), SPECKLES_FERTILISED)),
-            (model_name(name, "_moist", True), speckle(
-                enrich(moist, FERTILISED_BRIGHTNESS, FERTILISED_SATURATION), SPECKLES_FERTILISED)),
-            (model_name(name, "_well", True), speckle(
-                enrich(dry, WELL_BRIGHTNESS, WELL_SATURATION), SPECKLES_WELL)),
-            (model_name(name, "_well_moist", True), speckle(
-                enrich(moist, WELL_BRIGHTNESS, WELL_SATURATION), SPECKLES_WELL)),
+            (model_name(name, "", True), darken(dry, FERTILISED_BRIGHTNESS)),
+            (model_name(name, "_moist", True), darken(moist, FERTILISED_BRIGHTNESS)),
+            (model_name(name, "_well", True), darken(dry, WELL_BRIGHTNESS)),
+            (model_name(name, "_well_moist", True), darken(moist, WELL_BRIGHTNESS)),
         ]
         for model, array in tops:
             # RGBA like every vanilla block texture, even though these are fully opaque.

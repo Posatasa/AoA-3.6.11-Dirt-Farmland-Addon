@@ -3,7 +3,7 @@
 Adds a farmland block for every dirt block in [Advent of Ascension 3](https://github.com/Tslat/Advent-Of-Ascension)
 **1.16.5-3.6.11**, so a hoe works on AoA soil the same way it works on vanilla dirt.
 
-**Download:** [`dist/aoa3farmland-1.2.2.jar`](dist/aoa3farmland-1.2.2.jar) — drop it into `mods/`
+**Download:** [`dist/aoa3farmland-1.2.3.jar`](dist/aoa3farmland-1.2.3.jar) — drop it into `mods/`
 (checksums in [`dist/SHA256SUMS.txt`](dist/SHA256SUMS.txt)).
 
 ## 1. What it adds
@@ -60,11 +60,11 @@ behave the way AoA's does, including its two-way conversion:
 The ability's Farming experience award is repeated for these blocks, through the same AoA API the
 ability itself uses, so fertilising one is worth exactly what fertilising vanilla farmland is worth.
 
-The tilled top is vanilla's own farmland pattern recoloured to that soil's palette. A fertilised
-top is that same pattern with pale and green flecks scattered over it - the way AoA's own fertilised
-farmland is recognisable - a few of them when plain and many more once well fertilised, which is what
-tells AoA's two states apart. The flecks are drawn at this add-on's own fixed positions in its own
-colours.
+The tilled top is vanilla farmland's own light-and-dark pattern in that soil's colour - only the
+luminance is taken from vanilla's texture, not its hue, so a highlight is a lighter patch of the soil
+itself and no soil can pick up a colour it does not have. A fertilised top is the same pattern at
+AoA's own contrast (its fertilised farmland is 0.89x vanilla's brightness, its well fertilised one
+0.81x), with nothing painted on top.
 
 Deliberately **not** included: `aoa3:polluted_soil` and `aoa3:polluted_grass`, `aoa3:archaic_dirt`
 (a pickaxe-mined stone block that merely happens to be named dirt), and the AoA grass variants
@@ -117,7 +117,7 @@ project is not affiliated with or endorsed by Tslat. This add-on itself is MIT �
 为 [虚无世界 3](https://github.com/Tslat/Advent-Of-Ascension) **1.16.5-3.6.11** 的每一种泥土
 方块添加了对应的耕地变种，让锄头在虚无世界的泥土上也能像在原版泥土上一样使用。
 
-**下载：** [`dist/aoa3farmland-1.2.2.jar`](dist/aoa3farmland-1.2.2.jar)，放进 `mods/` 即可。
+**下载：** [`dist/aoa3farmland-1.2.3.jar`](dist/aoa3farmland-1.2.3.jar)，放进 `mods/` 即可。
 
 1. **加了什么**：为 AoA 自己放进 `forge:dirt` 标签的全部泥土各加一块耕地，共 11 块，放在独立的
    创造模式物品栏「虚无世界耕地」中，带中英文名称。性质完全继承原版耕地（同一套湿度、干燥、踩踏
@@ -126,9 +126,11 @@ project is not affiliated with or endorsed by Tslat. This add-on itself is MIT �
    一致）；**原版和 AoA 的作物都能种在上面**——它们把「下方必须是 `minecraft:farmland`」写死了，
    任何附属耕地都无法满足，所以这里只针对本附属的方块放宽了那一处判断（见 `src/.../mixin`），
    它只会把 `false` 改成 `true`，其余种植规则仍是原版的；Forge 系作物则通过标准的
-   `canSustainPlant` 支持。耕地上表面用原版耕地的图案，配色改成对应泥土的色调。
+   `canSustainPlant` 支持。耕地上表面用原版耕地的图案，配色改成对应泥土的色调——只取原版的
+   **明暗结构**、不取它的颜色，所以高光就是这土自己颜色的稍亮处，不会混进别的色调。
    上表面的外观变化与原版一致：湿度 0–6 用「干」的纹理，到 7 换成更深的「湿」纹理，所以
-   旁边有水时和干透时的观感不同。
+   旁边有水时和干透时的观感不同。肥沃耕地同样是同一套图案，只是整体更暗（按 AoA 自己的比例：
+   肥沃是原版亮度的 0.89 倍，良好施肥 0.81 倍），没有额外画上去的东西。
    刻意不含 `polluted_soil` / `polluted_grass`（按需求排除）、`archaic_dirt`（是镐挖的石头方块，
    只是名字叫泥土），以及长在石头上的那些草方块。
    每种耕地还各有一块**肥沃耕地**（`aromatic_fertilised_farmland` 等），即 AoA 那块
@@ -193,6 +195,12 @@ throw on).
 
 ## Changelog
 
+- **1.2.3** — texture pass: the tilled top no longer picks up stray blue specks, and the fertilised
+  tops lost their green flecks. Vanilla farmland's pattern is now transferred by luminance only, so
+  a highlight is a lighter patch of the soil's own colour; the earlier per-channel ratio carried
+  vanilla's cool highlight tint, which turned into blue dots once multiplied by a saturated soil.
+  Fertilised and well fertilised are now distinguished the way AoA distinguishes its own, by
+  brightness alone (0.89x and 0.81x).
 - **1.2.2** — fertilising now awards the same Farming experience the ability awards for vanilla
   farmland (reached through AoA's own API by name, and checked against the AoA jar at build time),
   and the fertilised textures got the pale and green flecks AoA's own fertilised farmland has,
