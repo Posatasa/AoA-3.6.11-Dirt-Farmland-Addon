@@ -59,18 +59,25 @@ TAB_ZH = "虚无世界耕地"
 MOISTURE_LEVELS = 8
 WET_LEVEL = MOISTURE_LEVELS - 1
 
-# How much darker the fertilised tops are. Vanilla farmland has no flecks at all, and neither does
-# AoA's fertilised farmland in any meaningful amount, so the only honest way to show "fertilised" is
-# the one AoA itself uses: the same tilled pattern, darker. These two numbers are AoA's own measured
-# contrast (its fertilised top is 0.89x and its well fertilised one 0.81x the brightness of vanilla
-# farmland), so the difference reads the same as it does there and nothing invented is painted on top
-# of the vanilla pattern.
+# How much darker the fertilised tops are, and how many pale flecks they carry.
 #
-# It is a plain brightness scale on purpose: brightening or saturating would move the hue of the
-# near-grey pixels, and the point of this whole exercise is that every texture stays in its own soil's
-# colour. A hue-preservation check below enforces it.
-FERTILISED_BRIGHTNESS = 0.89
-WELL_BRIGHTNESS = 0.81
+# AoA's own fertilised farmland is only 0.89x the brightness of vanilla farmland, which turns out to
+# read as "no difference at all" once the soil is dark, so these go a little deeper. The flecks are
+# the other half of the same idea: AoA's fertilised top has a handful of pale pixels scattered over
+# it, and that is what the eye actually latches onto.
+#
+# The flecks are deliberately not blue and not green. Each one is its own pixel desaturated towards
+# grey and then lightened, so a fleck is a paler, dustier version of that very soil - the neutral grey
+# highlight vanilla farmland has, drawn in the soil's own hue.
+FERTILISED_BRIGHTNESS = 0.85
+WELL_BRIGHTNESS = 0.74
+
+# Fixed positions, so the result is identical on every run and machine.
+FLECKS_FERTILISED = ((3, 2), (11, 4), (6, 7), (1, 11), (13, 9), (9, 1))
+FLECKS_WELL = ((3, 2), (11, 4), (6, 7), (1, 11), (13, 9), (9, 1), (12, 12), (8, 13), (14, 5))
+FLECK_DESATURATE = 0.60          # how far a fleck moves towards its own grey
+FLECK_CONTRAST = 1.75            # how many times brighter a fleck is than the pixel under it
+FLECK_STRENGTH = 0.85            # how far the pixel moves towards the fleck colour
 
 
 def fertilised_name(block):
@@ -100,8 +107,27 @@ def clean(directory):
 
 
 def darken(rgb, factor):
-    """Scales brightness only, so a fertilised top keeps exactly the soil's own hue."""
+    """Scales brightness only, so the pattern keeps exactly the soil's own hue."""
     return np.clip(np.rint(rgb.astype(np.float64) * factor), 0, 255).astype(np.uint8)
+
+
+def fleck(rgb, positions):
+    """Adds pale, near-neutral dust flecks, each in its own pixel's hue.
+
+    The fleck colour is the pixel desaturated towards its own grey, then scaled to a fixed multiple
+    of that pixel's brightness. Defining it by contrast rather than by a fixed colour is what makes
+    the flecks readable on both a pale soil and a near-black one - and keeping the hue is what stops
+    them turning into the blue and green dots this started with.
+    """
+    out = rgb.astype(np.float64)
+    for x, y in positions:
+        base = out[y, x]
+        grey = base.mean()
+        colour = base * (1.0 - FLECK_DESATURATE) + grey * FLECK_DESATURATE
+        target = base.mean() * FLECK_CONTRAST + 10.0
+        colour = colour * (target / max(colour.mean(), 1e-6))
+        out[y, x] = base * (1.0 - FLECK_STRENGTH) + np.clip(colour, 0, 255) * FLECK_STRENGTH
+    return np.clip(np.rint(out), 0, 255).astype(np.uint8)
 
 
 def generate_textures():
@@ -158,10 +184,14 @@ def generate_textures():
         tops = [
             (model_name(name, "", False), dry),
             (model_name(name, "_moist", False), moist),
-            (model_name(name, "", True), darken(dry, FERTILISED_BRIGHTNESS)),
-            (model_name(name, "_moist", True), darken(moist, FERTILISED_BRIGHTNESS)),
-            (model_name(name, "_well", True), darken(dry, WELL_BRIGHTNESS)),
-            (model_name(name, "_well_moist", True), darken(moist, WELL_BRIGHTNESS)),
+            (model_name(name, "", True),
+             fleck(darken(dry, FERTILISED_BRIGHTNESS), FLECKS_FERTILISED)),
+            (model_name(name, "_moist", True),
+             fleck(darken(moist, FERTILISED_BRIGHTNESS), FLECKS_FERTILISED)),
+            (model_name(name, "_well", True),
+             fleck(darken(dry, WELL_BRIGHTNESS), FLECKS_WELL)),
+            (model_name(name, "_well_moist", True),
+             fleck(darken(moist, WELL_BRIGHTNESS), FLECKS_WELL)),
         ]
         for model, array in tops:
             # RGBA like every vanilla block texture, even though these are fully opaque.
