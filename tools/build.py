@@ -135,6 +135,89 @@ def cached_jars():
     return sorted(jars)
 
 
+def _declaring_ancestor(mappings, supertypes, name, params):
+    """The ancestor that declares this member, decided from the class hierarchy alone.
+
+    Deliberately not using Mappings.map_declared_method: a check that asks the rename code what it
+    thinks it renamed cannot detect the rename code being wrong.
+    """
+    hierarchy = mappings.hierarchy
+    if hierarchy is None:
+        return None
+    seen = set()
+    stack = [s for s in supertypes if s]
+    while stack:
+        current = stack.pop(0)
+        if current in seen:
+            continue
+        seen.add(current)
+        if (name, params) in hierarchy.members.get(current, ()):
+            return current
+        if current in hierarchy.supers:
+            stack.append(hierarchy.supers[current])
+        stack.extend(hierarchy.interfaces.get(current, ()))
+    return None
+
+
+def verify_overrides(staging, mappings):
+    """Checks that every overridden method carries its SRG name after remapping.
+
+    This is the failure mode that shipped twice: a method that overrides a vanilla method is
+    declared in our class and referenced nowhere, so nothing in the constant pool forces the
+    remapper to rename it. Left alone, it silently stops overriding - and the JVM only complains
+    later, as `AbstractMethodError`, when something calls the abstract method (opening the creative
+    inventory, in the case that motivated this check).
+
+    "Is this an override?" is answered from the class hierarchy, and the expected name comes
+    straight from the mapping tables, so disabling the rename makes this check fail.
+    """
+    mcp_dir = os.path.join(staging, "classes-mcp")
+    srg_dir = os.path.join(staging, "classes")
+    problems = []
+    checked = 0
+    for root, _, files in os.walk(mcp_dir):
+        for filename in files:
+            if not filename.endswith(".class"):
+                continue
+            path = os.path.join(root, filename)
+            rel = os.path.relpath(path, mcp_dir)
+            with open(path, "rb") as fh:
+                before = remap.ClassFile(fh.read())
+            with open(os.path.join(srg_dir, rel), "rb") as fh:
+                after = remap.ClassFile(fh.read())
+            declared_after = after.declared_members()
+            supertypes = [before.super_name] + before.interface_names()
+            for kind, _, name_index, descriptor_index in before.declared_slots():
+                name = before.utf8(name_index)
+                descriptor = before.utf8(descriptor_index)
+                if kind == "method":
+                    params = remap.Mappings.params(descriptor)
+                    ancestor = _declaring_ancestor(mappings, supertypes, name, params)
+                    table = mappings.methods
+                else:
+                    params = None
+                    ancestor = _declaring_ancestor(mappings, supertypes, name, None)
+                    table = mappings.fields
+                if ancestor is None:
+                    continue                       # not an override: keeps its own name
+                entry = table.get((ancestor, name, params))
+                if entry is None:
+                    continue                       # a Forge-added member; never remapped
+                srg = entry[0] if kind == "method" else entry
+                if srg == name:
+                    continue
+                checked += 1
+                if (srg, params) not in declared_after:
+                    problems.append("%s declares %s, which overrides %s.%s and must be %s"
+                                    % (before.this_name(), name, ancestor, name, srg))
+    for problem in problems:
+        print("  " + problem)
+    if problems:
+        raise SystemExit("%d override(s) would not override anything in the built jar; refusing "
+                         "to package" % len(problems))
+    print("verified %d overridden member(s) carry their SRG names" % checked)
+
+
 def verify_refmap(mappings, tsrg_path, srg_jar):
     """Checks that every name in the committed mixin refmap is the right SRG name.
 
@@ -220,8 +303,15 @@ def build(staging, out_jar):
     javac_sources(os.path.join(ROOT, "src", "main", "java"), classes, classpath)
 
     mappings = remap.Mappings(MAPPINGS, MCP_JAR)
-    print("remapping MCP -> SRG (%d classes, %d methods, %d class hierarchies)"
-          % (len(mappings.classes), len(mappings.methods),
+    if mappings.classes:
+        # The remapper rewrites the constant pool only. Annotation element values and generic
+        # Signature attributes also carry class names, as UTF8 descriptors rather than pool
+        # entries, so they are not covered - which is harmless exactly as long as classes are
+        # spelled the same in both naming schemes, as they are for 1.16.5.
+        raise SystemExit("MCP and SRG disagree on %d class name(s); the remapper would leave "
+                         "annotation and signature descriptors stale" % len(mappings.classes))
+    print("remapping MCP -> SRG (%d methods, %d class hierarchies)"
+          % (len(mappings.methods),
              len(mappings.hierarchy.supers) if mappings.hierarchy else 0))
     remap.remap_tree(classes, remapped, mappings, verbose=True)
 
@@ -246,6 +336,8 @@ def build(staging, out_jar):
             if b"tslat" in data or b"net/minecraft/aoa" in data:
                 raise SystemExit("%s references an AoA class" % os.path.join(root, f))
     print("no AoA classes referenced by any built class")
+
+    verify_overrides(staging, mappings)
 
     # A mixin that names the wrong SRG method fails at class-transform time, i.e. it takes the
     # game down at startup. The refmap is the only place those names live, so check every entry

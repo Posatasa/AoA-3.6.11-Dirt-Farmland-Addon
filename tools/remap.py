@@ -218,6 +218,43 @@ class Mappings:
             return name, self.map_descriptor(descriptor)
         return entry[0], self.map_descriptor(descriptor)
 
+    def map_declared_method(self, owner, name, params, supertypes):
+        """The SRG name a *declared* method must carry, or `name` when it is not an override.
+
+        Declarations need this for a different reason than references do: an override is filed
+        under the class that declares it (usually a superclass or interface), and nothing in the
+        subclass's constant pool has to refer to it, so the supertype chain is the only way to find
+        it. Missing this is what left `ItemGroup#makeIcon` unimplemented.
+        """
+        entry = self.methods.get((owner, name, params))
+        if entry is not None:
+            return entry[0]
+        if not self.hierarchy:
+            return name
+        for start in supertypes:
+            if not start:
+                continue
+            declared = self.hierarchy.declaring_class(start, name, params)
+            if declared is not None:
+                found = self.methods.get((declared, name, params))
+                if found is not None:
+                    return found[0]
+        return name
+
+    def map_declared_field(self, owner, name, supertypes):
+        key = (owner, name)
+        if key in self.fields:
+            return self.fields[key]
+        if not self.hierarchy:
+            return name
+        for start in supertypes:
+            if not start:
+                continue
+            declared = self.hierarchy.declaring_class(start, name, None)
+            if declared is not None:
+                return self.fields.get((declared, name), name)
+        return name
+
 
 class ClassFile:
     """Just enough of a class file to rebuild its constant pool and keep the rest verbatim."""
@@ -228,8 +265,10 @@ class ClassFile:
         if self.magic != 0xCAFEBABE:
             raise ValueError("not a class file")
         self.entries = [None] * self.count        # index -> (tag, payload bytes) or None
+        self.appended = {}                        # text -> index for UTF8 entries added here
         self._parse_pool()
-        self.rest = data[self.pool_end:]          # access_flags .. end, all pool-index based
+        # Bytearray: renamed declarations patch their name indices in place.
+        self.rest = bytearray(data[self.pool_end:])   # access_flags .. end, all pool-index based
         # this_class / super_class are u2s immediately after access_flags.
         self.this_index = struct.unpack_from(">H", data, self.pool_end + 2)[0]
         self.super_index = struct.unpack_from(">H", data, self.pool_end + 4)[0]
@@ -289,32 +328,56 @@ class ClassFile:
         encoded = text.encode("utf-8", "surrogateescape")
         self.entries[index] = (CONSTANT_UTF8, struct.pack(">H", len(encoded)) + encoded)
 
-    def declared_members(self):
-        """The (name, params or None) pairs this class declares itself."""
-        members = set()
+    def add_utf8(self, text):
+        """Appends a UTF8 entry (or reuses one added earlier) and returns its index."""
+        if text in self.appended:
+            return self.appended[text]
+        encoded = text.encode("utf-8", "surrogateescape")
+        index = len(self.entries)
+        self.entries.append((CONSTANT_UTF8, struct.pack(">H", len(encoded)) + encoded))
+        self.appended[text] = index
+        return index
+
+    def declared_slots(self):
+        """Where each declared field and method keeps its name.
+
+        Returns (kind, absolute offset of its name_index, name_index, descriptor_index) per
+        declaration. The offset is needed because the field/method tables live after the constant
+        pool and are copied verbatim, so renaming a declaration means patching those two bytes.
+        """
+        slots = []
         base = self.pool_end
         pos = base + 6                                  # interfaces_count
         interfaces = struct.unpack_from(">H", self.raw, pos)[0]
         pos += 2 + 2 * interfaces
-        for _ in range(2):                              # fields, then methods
+        for kind in ("field", "method"):
             count = struct.unpack_from(">H", self.raw, pos)[0]
             pos += 2
             for _ in range(count):
                 _, name_index, descriptor_index, attributes = struct.unpack_from(">HHHH",
                                                                                  self.raw, pos)
+                slots.append((kind, pos + 2, name_index, descriptor_index))
                 pos += 8
-                name = self.utf8(name_index)
-                descriptor = self.utf8(descriptor_index)
-                members.add((name, Mappings.params(descriptor) if descriptor.startswith("(") else None))
                 for _ in range(attributes):
                     _, length = struct.unpack_from(">HI", self.raw, pos)
                     pos += 6 + length
-        return members
+        return slots
+
+    def set_declared_name(self, absolute_offset, new_index):
+        offset = absolute_offset - self.pool_end
+        self.rest[offset:offset + 2] = struct.pack(">H", new_index)
+
+    def declared_members(self):
+        return {(self.utf8(name_index),
+                 Mappings.params(self.utf8(descriptor_index))
+                 if self.utf8(descriptor_index).startswith("(") else None)
+                for _, _, name_index, descriptor_index in self.declared_slots()}
 
     def rebuild(self):
+        count = len(self.entries)          # declarations may have appended UTF8 entries
         out = bytearray()
-        out += struct.pack(">IHHH", self.magic, self.minor, self.major, self.count)
-        for i in range(1, self.count):
+        out += struct.pack(">IHHH", self.magic, self.minor, self.major, count)
+        for i in range(1, count):
             entry = self.entries[i]
             if entry is None:                     # the second slot of a long/double
                 continue
@@ -326,34 +389,50 @@ class ClassFile:
 
 
 def remap_class_bytes(data, mappings):
+    """Rewrites one class file from MCP names to SRG names.
+
+    Three kinds of thing need renaming, and all three matter:
+
+    1. **Class names** in CONSTANT_Class entries.
+    2. **References** (Fieldref/Methodref/NameAndType): the name and the descriptors.
+    3. **Declarations** - the class's own field and method tables.
+
+    (3) is easy to forget and fails late: an override such as `ItemGroup#makeIcon` is declared
+    with its MCP name and there is no reference to it anywhere in the subclass, so leaving it alone
+    produces a method that no longer overrides anything. The JVM then reports
+    `AbstractMethodError` when something calls the abstract method - in our case, opening the
+    creative inventory.
+
+    New UTF8 entries are appended rather than overwriting existing ones, because one UTF8 entry can
+    be shared by a declaration and an unrelated reference; editing it in place would rename both.
+    """
     cls = ClassFile(data)
-    # Decide every rename first, then apply it. A single pass that reads *and* writes the pool
-    # would see its own edits: two references can share one UTF8 entry, and the second read would
-    # then get the renamed text (or, worse, an index that now holds a different kind of entry).
-    renames = {}          # pool index -> new text
+
     for i in range(1, cls.count):
         entry = cls.entries[i]
         if entry is None:
             continue
         tag, payload = entry
         if tag == CONSTANT_CLASS:
-            name = cls.utf8(cls.u2(payload))
+            name_index = cls.u2(payload)
+            name = cls.utf8(name_index)
             mapped = mappings.map_class(name)
             if mapped != name:
-                renames[cls.u2(payload)] = mapped
+                cls.entries[i] = (CONSTANT_CLASS, struct.pack(">H", cls.add_utf8(mapped)))
         elif tag == CONSTANT_NAME_AND_TYPE:
-            descriptor_index = cls.u2(payload, 2)
+            # A NameAndType on its own (invokedynamic) only needs its descriptor mapped; the name
+            # is fixed by the bootstrap method.
+            name_index, descriptor_index = cls.u2(payload), cls.u2(payload, 2)
             descriptor = cls.utf8(descriptor_index)
-            # Field NameAndType entries hold a type descriptor; method ones start with "(".
-            if descriptor.startswith("("):
-                mapped = mappings.map_descriptor(descriptor)
-                if mapped != descriptor:
-                    renames[descriptor_index] = mapped
+            mapped = mappings.map_descriptor(descriptor)
+            if mapped != descriptor:
+                cls.entries[i] = (CONSTANT_NAME_AND_TYPE,
+                                  struct.pack(">HH", name_index, cls.add_utf8(mapped)))
         elif tag in (CONSTANT_FIELDREF, CONSTANT_METHODREF, CONSTANT_INTERFACE_METHODREF):
             # A ref names its owner through a CONSTANT_Class entry, so go via that entry's name.
             owner = cls.utf8(cls.u2(cls.entries[cls.u2(payload)][1]))
-            nat_payload = cls.entries[cls.u2(payload, 2)][1]
-            name_index, descriptor_index = cls.u2(nat_payload), cls.u2(nat_payload, 2)
+            nat_index = cls.u2(payload, 2)
+            name_index, descriptor_index = struct.unpack_from(">HH", cls.entries[nat_index][1])
             name, descriptor = cls.utf8(name_index), cls.utf8(descriptor_index)
             if tag == CONSTANT_FIELDREF:
                 mapped_name = mappings.map_field(owner, name)
@@ -361,14 +440,27 @@ def remap_class_bytes(data, mappings):
             else:
                 mapped_name, mapped_descriptor = mappings.map_method(owner, name, descriptor)
             if mapped_name != name:
-                renames[name_index] = mapped_name
+                name_index = cls.add_utf8(mapped_name)
             if mapped_descriptor != descriptor:
-                renames[descriptor_index] = mapped_descriptor
+                descriptor_index = cls.add_utf8(mapped_descriptor)
+            cls.entries[nat_index] = (CONSTANT_NAME_AND_TYPE,
+                                      struct.pack(">HH", name_index, descriptor_index))
 
-    for index, text in renames.items():
-        if cls.entries[index][0] != CONSTANT_UTF8:
-            raise ValueError("pool index %d is not a UTF8 entry" % index)
-        cls.set_utf8(index, text)
+    # Declarations. The mapping for an override is filed under the class that declares it, which is
+    # usually a superclass or interface rather than this class, so resolve through the hierarchy.
+    this_name = cls.this_name()
+    supertypes = [cls.super_name] + cls.interface_names()
+    for kind, offset, name_index, descriptor_index in cls.declared_slots():
+        name = cls.utf8(name_index)
+        descriptor = cls.utf8(descriptor_index)
+        if kind == "method":
+            params = Mappings.params(descriptor)
+            mapped = mappings.map_declared_method(this_name, name, params, supertypes)
+        else:
+            mapped = mappings.map_declared_field(this_name, name, supertypes)
+        if mapped != name:
+            cls.set_declared_name(offset, cls.add_utf8(mapped))
+
     return cls.rebuild()
 
 
