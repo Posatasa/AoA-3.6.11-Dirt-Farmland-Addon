@@ -315,6 +315,10 @@ def verify_refmap(mappings, tsrg_path, srg_jar):
              "net/minecraft/block/AttachedStemBlock"],
             "(Lnet/minecraft/block/BlockState;Lnet/minecraft/world/IBlockReader;"
             "Lnet/minecraft/util/math/BlockPos;)Z"),
+        "destroy": (
+            ["net/minecraft/block/Block"],
+            "(Lnet/minecraft/world/IWorld;Lnet/minecraft/util/math/BlockPos;"
+            "Lnet/minecraft/block/BlockState;)V"),
     }
 
     srg = verify_refs.load_srg(srg_jar)
@@ -436,6 +440,42 @@ def verify_resources(resources_dir, aoa_jar):
             if "block.aoa3farmland." + block not in table:
                 problems.append("%s: missing name for %s" % (language, block))
 
+    # The fertilised blocks carry AoA's extra `well_fertilised` state, so their blockstates must
+    # cover both values at every moisture level. A missing variant shows up in game as an
+    # invisible block, with no error anywhere.
+    for entry in sorted(ours):
+        if not (entry.startswith("blockstates/") and entry.endswith("_fertilised_farmland.json")):
+            continue
+        with open(os.path.join(assets_root, entry), encoding="utf-8") as fh:
+            variants = json.load(fh).get("variants", {})
+        for level in range(8):
+            for well in ("false", "true"):
+                key = "moisture=%d,well_fertilised=%s" % (level, well)
+                if key not in variants:
+                    problems.append("%s: missing variant %s" % (entry, key))
+
+    # The harvest modifier only runs if its data files line up with the registered serializer.
+    data_root = os.path.join(resources_dir, "data")
+    modifier = os.path.join(data_root, "aoa3farmland", "loot_modifiers",
+                            "fertilised_farmland.json")
+    if not os.path.isfile(modifier):
+        problems.append("missing data/aoa3farmland/loot_modifiers/fertilised_farmland.json")
+    else:
+        with open(modifier, encoding="utf-8") as fh:
+            if json.load(fh).get("type") != "aoa3farmland:fertilised_farmland":
+                problems.append("the harvest modifier's type must be its serializer id")
+    global_modifiers = os.path.join(data_root, "forge", "loot_modifiers",
+                                    "global_loot_modifiers.json")
+    if not os.path.isfile(global_modifiers):
+        problems.append("missing data/forge/loot_modifiers/global_loot_modifiers.json")
+    else:
+        with open(global_modifiers, encoding="utf-8") as fh:
+            entries = json.load(fh).get("entries", [])
+        if "aoa3farmland:fertilised_farmland" not in entries:
+            problems.append("the harvest modifier is not registered in the global list")
+        if json.load(open(global_modifiers, encoding="utf-8")).get("replace"):
+            problems.append("the global loot modifier list must merge, not replace")
+
     for problem in problems:
         print("  " + problem)
     if problems:
@@ -483,16 +523,26 @@ def build(staging, out_jar):
                          "jar; refusing to package" % len(problems))
     print("verified %d member references against the SRG jar" % checked)
 
-    # The mod must not contain or depend on any AoA type - that is the whole licensing story.
+    # The mod must not link against any AoA type - that is the whole licensing story. This looks
+    # at CONSTANT_Class entries, i.e. at types the JVM would actually resolve and load, rather
+    # than at raw bytes: the mixins name AoA's classes in @Mixin(targets = "...") *strings* on
+    # purpose (that is how they cooperate with AoA without depending on it at compile time), and
+    # those strings are not references.
     for root, _, files in os.walk(remapped):
         for f in files:
             if not f.endswith(".class"):
                 continue
-            with open(os.path.join(root, f), "rb") as fh:
-                data = fh.read()
-            if b"tslat" in data or b"net/minecraft/aoa" in data:
-                raise SystemExit("%s references an AoA class" % os.path.join(root, f))
-    print("no AoA classes referenced by any built class")
+            path = os.path.join(root, f)
+            with open(path, "rb") as fh:
+                cls = remap.ClassFile(fh.read())
+            for i in range(1, cls.count):
+                entry = cls.entries[i]
+                if entry is None or entry[0] != remap.CONSTANT_CLASS:
+                    continue
+                name = cls.utf8(cls.u2(entry[1]))
+                if name.startswith(("net/tslat/", "net/minecraft/aoa")):
+                    raise SystemExit("%s links against the AoA type %s" % (path, name))
+    print("no AoA type is linked by any built class")
 
     verify_overrides(staging, mappings)
     verify_block_properties(staging)

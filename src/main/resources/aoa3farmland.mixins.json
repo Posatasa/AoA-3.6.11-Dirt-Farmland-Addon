@@ -5,7 +5,9 @@
   "compatibilityLevel": "JAVA_8",
   "refmap": "aoa3farmland.refmap.json",
   "mixins": [
-    "MixinMayPlaceOn"
+    "MixinMayPlaceOn",
+    "MixinFertiliseFarmland",
+    "MixinGreenManure"
   ],
   "injectors": {
     "defaultRequire": 0,

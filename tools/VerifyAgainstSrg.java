@@ -22,7 +22,12 @@ public class VerifyAgainstSrg {
                 "com.posatasa.aoa3farmland.FarmlandBlocks",
                 "com.posatasa.aoa3farmland.FarmlandBlocks$1",
                 "com.posatasa.aoa3farmland.block.AoAFarmlandBlock",
+                "com.posatasa.aoa3farmland.block.AoaFertilisedFarmlandBlock",
+                "com.posatasa.aoa3farmland.FertilisedFarmlandLootModifier",
+                "com.posatasa.aoa3farmland.FertilisedFarmlandLootModifier$Serializer",
                 "com.posatasa.aoa3farmland.mixin.MixinMayPlaceOn",
+                "com.posatasa.aoa3farmland.mixin.MixinFertiliseFarmland",
+                "com.posatasa.aoa3farmland.mixin.MixinGreenManure",
         };
         ClassLoader loader = VerifyAgainstSrg.class.getClassLoader();
         int failures = 0;

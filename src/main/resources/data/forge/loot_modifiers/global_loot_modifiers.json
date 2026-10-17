@@ -1,0 +1,7 @@
+{
+  "_comment": "Adds this add-on's harvest modifier; AoA's own entries are merged in.",
+  "replace": false,
+  "entries": [
+    "aoa3farmland:fertilised_farmland"
+  ]
+}

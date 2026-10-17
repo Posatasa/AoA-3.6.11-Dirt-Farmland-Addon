@@ -8,8 +8,11 @@ that soil in the vanilla tilled pattern, at the soil's own brightness. The moist
 result re-shaded at vanilla's moist brightness. Feeding vanilla dirt back through the dry path
 reproduces vanilla farmland.png byte for byte.
 
+The fertilised tops are that same vanilla-derived result, tinted darker and richer, with a few
+compost flecks once fully fertilised. Nothing is derived from AoA's own textures.
+
 The block looks the way vanilla farmland looks: one top texture for moisture 0..6 and a darker one
-at 7. Nothing here invents intermediate steps.
+at 7. The fertilised block repeats that split per `well_fertilised` state, like AoA's own block.
 
 Models: like vanilla farmland, only the top face is the tilled texture. The sides and bottom
 point at AoA's own soil texture (`aoa3:block/<soil>`), so they stay plain dirt - and since that
@@ -21,7 +24,7 @@ import os
 import zipfile
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageEnhance
 
 MC_JAR = os.path.expanduser(
     r"~\.gradle\caches\forge_gradle\minecraft_repo\versions\1.16.5\client-extra.jar")
@@ -53,10 +56,25 @@ TAB_ZH = "虚无世界耕地"
 MOISTURE_LEVELS = 8
 WET_LEVEL = MOISTURE_LEVELS - 1
 
+# How much richer the fertilised tops look, relative to the plain tilled texture. Picked so the
+# difference is obvious in game without turning the soil into a different colour.
+FERTILISED_BRIGHTNESS = 0.86
+FERTILISED_SATURATION = 1.15
+WELL_BRIGHTNESS = 0.74
+WELL_SATURATION = 1.25
 
-def model_name(block, level):
-    """The model/texture for one moisture level: vanilla's two states, nothing in between."""
-    return block + "_moist" if level == WET_LEVEL else block
+# Fixed positions where the well fertilised texture gets its compost flecks, so the result is
+# deterministic across runs and machines.
+COMPOST_FLECKS = ((2, 3), (7, 1), (11, 6), (4, 12), (13, 10), (9, 14))
+
+
+def fertilised_name(block):
+    return block.replace("_farmland", "_fertilised_farmland")
+
+
+def model_name(block, suffix, fertilised):
+    """Texture/model name: the block's own name plus a state suffix ("" / "_moist" / "_well" ...)."""
+    return (fertilised_name(block) if fertilised else block) + suffix
 
 
 def write_json(path, obj):
@@ -74,6 +92,21 @@ def clean(directory):
         path = os.path.join(directory, name)
         if os.path.isfile(path):
             os.remove(path)
+
+
+def enrich(rgb, brightness, saturation):
+    """Vanilla-derived tinting: no new imagery, just a darker, richer version of the same pixels."""
+    image = ImageEnhance.Color(Image.fromarray(rgb)).enhance(saturation)
+    image = ImageEnhance.Brightness(image).enhance(brightness)
+    return np.asarray(image).astype(np.uint8)
+
+
+def speckle(rgb):
+    """Adds a few compost flecks, keeping the soil's own colour underneath."""
+    out = rgb.astype(np.float64)
+    for x, y in COMPOST_FLECKS:
+        out[y, x] = out[y, x] * 0.55 + np.array([44.0, 72.0, 28.0]) * 0.45
+    return np.clip(np.rint(out), 0, 255).astype(np.uint8)
 
 
 def generate_textures():
@@ -111,11 +144,21 @@ def generate_textures():
     clean(out_dir)
     for name, texture, _, _, _ in SOILS:
         soil = load(za, "assets/aoa3/textures/block/%s.png" % texture)
-        for suffix, wet in (("", False), ("_moist", True)):
+        dry, moist = recolor(soil, False), recolor(soil, True)
+        tops = [
+            (model_name(name, "", False), dry),
+            (model_name(name, "_moist", False), moist),
+            (model_name(name, "", True), enrich(dry, FERTILISED_BRIGHTNESS, FERTILISED_SATURATION)),
+            (model_name(name, "_moist", True),
+             enrich(moist, FERTILISED_BRIGHTNESS, FERTILISED_SATURATION)),
+            (model_name(name, "_well", True), speckle(enrich(dry, WELL_BRIGHTNESS, WELL_SATURATION))),
+            (model_name(name, "_well_moist", True),
+             speckle(enrich(moist, WELL_BRIGHTNESS, WELL_SATURATION))),
+        ]
+        for model, array in tops:
             # RGBA like every vanilla block texture, even though these are fully opaque.
-            image = Image.fromarray(recolor(soil, wet)).convert("RGBA")
-            image.save(os.path.join(out_dir, name + suffix + ".png"))
-        print("  %s.png / %s_moist.png" % (name, name))
+            Image.fromarray(array).convert("RGBA").save(os.path.join(out_dir, model + ".png"))
+        print("  %s: %d textures" % (name, len(tops)))
 
 
 def generate_resources():
@@ -130,42 +173,67 @@ def generate_resources():
     clean(models_dir)
     clean(blockstates_dir)
 
+    def write_model(block, suffix, fertilised, soil_texture):
+        model = model_name(block, suffix, fertilised)
+        write_json(os.path.join(models_dir, model + ".json"), {
+            "parent": "minecraft:block/template_farmland",
+            "textures": {
+                "top": "aoa3farmland:block/" + model,
+                "dirt": "aoa3:block/" + soil_texture,
+            },
+        })
+        return model
+
     for name, texture, soil, english, chinese in SOILS:
         bid = "aoa3farmland:" + name
+        fertilised = fertilised_name(name)
 
-        # blockstate: exactly vanilla's split - dry for 0..6, moist at 7
+        # ---- plain farmland: exactly vanilla's split, dry for 0..6 and moist at 7
         variants = {}
         for level in range(MOISTURE_LEVELS):
+            suffix = "_moist" if level == WET_LEVEL else ""
             variants["moisture=%d" % level] = {
-                "model": "aoa3farmland:block/" + model_name(name, level)}
+                "model": "aoa3farmland:block/" + model_name(name, suffix, False)}
         write_json(os.path.join(blockstates_dir, name + ".json"), {"variants": variants})
-
-        # models: only `top` is ours. `dirt` is AoA's own soil texture, so the sides and bottom
-        # stay plain dirt exactly like vanilla farmland - and no AoA asset is copied into the jar.
-        for suffix, top in (("", name), ("_moist", name + "_moist")):
-            write_json(os.path.join(models_dir, name + suffix + ".json"), {
-                "parent": "minecraft:block/template_farmland",
-                "textures": {
-                    "top": "aoa3farmland:block/" + top,
-                    "dirt": "aoa3:block/" + texture,
-                },
-            })
+        write_model(name, "", False, texture)
+        write_model(name, "_moist", False, texture)
         # The item shows the dry state, like vanilla's farmland item.
         write_json(os.path.join(ASSETS, "models", "item", name + ".json"),
                    {"parent": "aoa3farmland:block/" + name})
 
-        # loot: vanilla farmland drops dirt; these drop their own AoA soil instead
-        write_json(os.path.join(DATA, "aoa3farmland", "loot_tables", "blocks", name + ".json"), {
-            "type": "minecraft:block",
-            "pools": [{
-                "rolls": 1,
-                "entries": [{"type": "minecraft:item", "name": soil}],
-                "conditions": [{"condition": "minecraft:survives_explosion"}],
-            }],
-        })
+        # ---- fertilised farmland: AoA's extra `well_fertilised` state, same moisture split
+        variants = {}
+        for level in range(MOISTURE_LEVELS):
+            suffix = "_moist" if level == WET_LEVEL else ""
+            variants["moisture=%d,well_fertilised=false" % level] = {
+                "model": "aoa3farmland:block/" + model_name(name, suffix, True)}
+            variants["moisture=%d,well_fertilised=true" % level] = {
+                "model": "aoa3farmland:block/" + model_name(name, "_well" + suffix, True)}
+        write_json(os.path.join(blockstates_dir, fertilised + ".json"), {"variants": variants})
+        write_model(name, "", True, texture)
+        write_model(name, "_moist", True, texture)
+        write_model(name, "_well", True, texture)
+        write_model(name, "_well_moist", True, texture)
+        write_json(os.path.join(ASSETS, "models", "item", fertilised + ".json"),
+                   {"parent": "aoa3farmland:block/" + fertilised})
+
+        # loot: both drop the AoA soil they were tilled from, not vanilla dirt
+        for lootName in (name, fertilised):
+            write_json(os.path.join(DATA, "aoa3farmland", "loot_tables", "blocks",
+                                    lootName + ".json"), {
+                "type": "minecraft:block",
+                "pools": [{
+                    "rolls": 1,
+                    "entries": [{"type": "minecraft:item", "name": soil}],
+                    "conditions": [{"condition": "minecraft:survives_explosion"}],
+                }],
+            })
 
         en["block.aoa3farmland." + name] = english
         zh["block.aoa3farmland." + name] = chinese
+        en["block.aoa3farmland." + fertilised] = english.replace("Farmland",
+                                                                 "Fertilised Farmland")
+        zh["block.aoa3farmland." + fertilised] = chinese.replace("耕地", "肥沃耕地")
         dirt_tag.append(bid)
 
     write_json(os.path.join(ASSETS, "lang", "en_us.json"), en)
@@ -177,6 +245,20 @@ def generate_resources():
         "_comment": "The AoA farmland this add-on adds still counts as dirt.",
         "replace": False,
         "values": dirt_tag,
+    })
+
+    # The harvest modifier: AoA does this for its own fertilised farmland with a global loot
+    # modifier; ours is the per-soil equivalent, registered the same way.
+    write_json(os.path.join(DATA, "aoa3farmland", "loot_modifiers",
+                            "fertilised_farmland.json"), {
+        "conditions": [],
+        "type": "aoa3farmland:fertilised_farmland",
+    })
+    write_json(os.path.join(DATA, "forge", "loot_modifiers",
+                            "global_loot_modifiers.json"), {
+        "_comment": "Adds this add-on's harvest modifier; AoA's own entries are merged in.",
+        "replace": False,
+        "entries": ["aoa3farmland:fertilised_farmland"],
     })
 
 

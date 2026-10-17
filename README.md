@@ -3,7 +3,7 @@
 Adds a farmland block for every dirt block in [Advent of Ascension 3](https://github.com/Tslat/Advent-Of-Ascension)
 **1.16.5-3.6.11**, so a hoe works on AoA soil the same way it works on vanilla dirt.
 
-**Download:** [`dist/aoa3farmland-1.1.3.jar`](dist/aoa3farmland-1.1.3.jar) — drop it into `mods/`
+**Download:** [`dist/aoa3farmland-1.2.0.jar`](dist/aoa3farmland-1.2.0.jar) — drop it into `mods/`
 (checksums in [`dist/SHA256SUMS.txt`](dist/SHA256SUMS.txt)).
 
 ## 1. What it adds
@@ -43,7 +43,26 @@ rules, same trampling and crop support — with three differences:
   every other planting rule stays vanilla's. Forge-aware crops are supported through the normal
   `canSustainPlant` contract instead.
 
-The tilled top is vanilla's own farmland pattern recoloured to that soil's palette.
+Each of those also has a **fertilised** counterpart (`aromatic_fertilised_farmland`, ...), the
+per-soil version of AoA's `aoa3:fertilised_farmland`. They carry AoA's `well_fertilised` state and
+behave the way AoA's does, including its two-way conversion:
+
+- **Bone meal** on one of these farmlands, with AoA's *Fertilise Farmland* ability unlocked, turns it
+  into its fertilised variant - moisture kept, one bone meal spent. AoA's ability only recognised
+  vanilla farmland (`state.getBlock() == Blocks.FARMLAND`), so this add-on hooks the ability itself
+  rather than reimplementing it: the conversion only happens for players who actually have it.
+- Breaking a mature **green manure** crop well-fertilises the soil under it, as with AoA's crop.
+- Harvesting a mature crop over a fertilised block adds **2** extra of every non-seed drop and
+  leaves it plain fertilised; over a plain fertilised block it adds **1** and leaves the plain
+  farmland behind. Moisture is preserved, and green manure is exempt so it keeps the block well
+  fertilised. This is AoA's own rule set, applied to these blocks by an equivalent loot modifier.
+
+One deviation worth knowing: the *Fertilise Farmland* ability also grants Farming experience, and
+that award does not happen for these blocks, because the ability is cancelled before it gets that
+far. The conversion and the bone meal cost do match.
+
+The tilled top is vanilla's own farmland pattern recoloured to that soil's palette. A fertilised
+top is that same pattern tinted darker and richer, with a few compost flecks once well fertilised.
 
 Deliberately **not** included: `aoa3:polluted_soil` and `aoa3:polluted_grass`, `aoa3:archaic_dirt`
 (a pickaxe-mined stone block that merely happens to be named dirt), and the AoA grass variants
@@ -78,7 +97,7 @@ project is not affiliated with or endorsed by Tslat. This add-on itself is MIT �
 为 [虚无世界 3](https://github.com/Tslat/Advent-Of-Ascension) **1.16.5-3.6.11** 的每一种泥土
 方块添加了对应的耕地变种，让锄头在虚无世界的泥土上也能像在原版泥土上一样使用。
 
-**下载：** [`dist/aoa3farmland-1.1.3.jar`](dist/aoa3farmland-1.1.3.jar)，放进 `mods/` 即可。
+**下载：** [`dist/aoa3farmland-1.2.0.jar`](dist/aoa3farmland-1.2.0.jar)，放进 `mods/` 即可。
 
 1. **加了什么**：为 AoA 自己放进 `forge:dirt` 标签的全部泥土各加一块耕地，共 11 块，放在独立的
    创造模式物品栏「虚无世界耕地」中，带中英文名称。性质完全继承原版耕地（同一套湿度、干燥、踩踏
@@ -92,6 +111,16 @@ project is not affiliated with or endorsed by Tslat. This add-on itself is MIT �
    旁边有水时和干透时的观感不同。
    刻意不含 `polluted_soil` / `polluted_grass`（按需求排除）、`archaic_dirt`（是镐挖的石头方块，
    只是名字叫泥土），以及长在石头上的那些草方块。
+   每种耕地还各有一块**肥沃耕地**（`aromatic_fertilised_farmland` 等），即 AoA 那块
+   `aoa3:fertilised_farmland` 的分土版本。它们带 AoA 的 `well_fertilised` 状态，并按 AoA 的规则
+   双向转化：解锁 AoA 的「施肥」能力后手持**骨粉**右击本附属的耕地 → 变成对应的肥沃耕地
+   （保持湿度、消耗 1 个骨粉）；破坏成熟的**绿肥**作物 → 下方变成「良好施肥」的肥沃耕地；
+   在肥沃耕地上收割成熟作物 → 每种非种子掉落额外 +2（良好施肥时）或 +1，并依次降级为
+   普通肥沃耕地 / 普通耕地（保持湿度，绿肥作物不触发降级）。AoA 的能力原本只认原版耕地
+   （`== Blocks.FARMLAND`），所以这里挂的是 AoA 自己的能力、而不是另写一套：只有真正拥有该能力
+   的玩家才会触发。
+   ⚠️ 已知差异：AoA 的「施肥」能力会给农业经验，本附属的方块不发放经验（能力在被调用前就交给我们
+   处理了），转化本身与骨粉消耗与原版一致。
 2. **安装侧**：`BOTH`（两端）。包含 Java 代码、mixin 与数据，服务端必须安装；没装的客户端也能进服。
 3. **许可证**：虚无世界的许可证禁止再分发其代码与素材，本附属两者都不含——源码与编译后的类里没有
    出现任何 AoA 类名，关联只靠注册名；随包发布的纹理全部由原版 `dirt` / `farmland` /
@@ -130,6 +159,11 @@ throw on).
 
 ## Changelog
 
+- **1.2.0** — fertilised farmland for every soil, wired into AoA's farming system: bone meal
+  through AoA's *Fertilise Farmland* ability, the green manure crop that sets `well_fertilised`, and
+  an equivalent harvest modifier so a mature crop gives its +1/+2 bonus and steps the block back
+  down toward plain farmland. AoA's ability and crop are hooked by mixin *name* (string targets,
+  `require = 0`, `required: false`), so the build still links against no AoA type at all.
 - **1.1.3** — fixed farmland turning into vanilla dirt when it dried out or when a block was placed
   on top. Vanilla destroys farmland from three places and does it through a *static* helper that
   names `minecraft:dirt` directly, so no virtual dispatch reaches it; only the trampling path had

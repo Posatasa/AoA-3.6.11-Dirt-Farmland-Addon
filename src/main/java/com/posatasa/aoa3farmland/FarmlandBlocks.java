@@ -1,6 +1,7 @@
 package com.posatasa.aoa3farmland;
 
 import com.posatasa.aoa3farmland.block.AoAFarmlandBlock;
+import com.posatasa.aoa3farmland.block.AoaFertilisedFarmlandBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.SoundType;
 import net.minecraft.block.material.Material;
@@ -15,7 +16,9 @@ import net.minecraft.util.SoundCategory;
 import net.minecraft.util.SoundEvents;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.ToolType;
+import net.minecraftforge.common.loot.GlobalLootModifierSerializer;
 import net.minecraftforge.event.entity.player.UseHoeEvent;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -35,22 +38,17 @@ import java.util.Map;
 /**
  * Registration and lookup for the farmland blocks.
  *
- * <p>One farmland is added for every AoA block that AoA itself puts in the {@code forge:dirt}
- * block tag, except for polluted soil (and therefore polluted grass), which is deliberately left
- * alone. That tag is this mod's definition of "AoA's dirt blocks": it is the same set AoA treats
+ * <p>For every AoA dirt block that AoA itself puts in the {@code forge:dirt} tag (polluted soil
+ * excluded), two blocks are added: a farmland, and the fertilised farmland AoA's farming system
+ * expects. That tag is this mod's definition of "AoA's dirt blocks": it is the same set AoA treats
  * as dirt for every other purpose, and it excludes the stone-like block that merely happens to be
  * named dirt (archaic dirt is a pickaxe-mined stone block, not soil) as well as the handful of AoA
  * grass variants that sit on stone or rock rather than on soil.
  *
  * <p>Nothing here names an AoA class. Every association to AoA's blocks is made by registry name
  * after all mods have finished registering, so this add-on contains no AoA code and needs no
- * AoA classes on its compile classpath.
- *
- * <p>Tilling is hooked through {@link UseHoeEvent}, not through the block's
- * {@code getToolModifiedState}: that method is called on the block being tilled, which is the AoA
- * block, so an override on these farmland blocks would never run for AoA soil. Forge fires
- * {@code UseHoeEvent} from {@code HoeItem#useOn} before vanilla's own tilling map is consulted,
- * which is exactly the extension point needed.
+ * AoA classes on its compile classpath; the two places that have to cooperate with AoA's own
+ * abilities and crops do so through mixins configured by name (see {@code aoa3farmland.mixins.json}).
  */
 public final class FarmlandBlocks {
     public static final String MOD_ID = "aoa3farmland";
@@ -75,9 +73,14 @@ public final class FarmlandBlocks {
             DeferredRegister.create(ForgeRegistries.BLOCKS, MOD_ID);
     private static final DeferredRegister<Item> ITEMS =
             DeferredRegister.create(ForgeRegistries.ITEMS, MOD_ID);
+    private static final DeferredRegister<GlobalLootModifierSerializer<?>> LOOT_MODIFIERS =
+            DeferredRegister.create(ForgeRegistries.LOOT_MODIFIER_SERIALIZERS, MOD_ID);
 
-    /** One entry per AoA soil: the farmland we add for it, and the names it comes from. */
+    /** One entry per AoA soil: its farmland, its fertilised farmland, and the names behind them. */
     private static final List<Soil> SOILS = new ArrayList<>();
+
+    /** Plain farmland -> its fertilised counterpart. */
+    private static final Map<Block, Block> FERTILISED_BY_FARMLAND = new HashMap<>();
 
     /**
      * Source block (an AoA soil or the grass growing on it) -> the AoA farmland a hoe turns it
@@ -88,32 +91,48 @@ public final class FarmlandBlocks {
     private static volatile boolean bound;
 
     /**
-     * Registers the block/item entries and the two event listeners.
+     * Registers the blocks, items and loot modifier, plus the two Forge event listeners.
      *
-     * <p>Both listeners are plain (non-generic) events, which matters: Forge's
+     * <p>The listeners are plain (non-generic) events, which matters: Forge's
      * {@code EventBus#addListener} throws "Cannot register a generic event listener with
-     * addListener" for anything extending {@code GenericEvent} - and that exception is thrown
+     * addListener" for anything extending {@code GenericEvent}, and that exception is thrown
      * while the mod is being constructed, so it fails the whole game at startup rather than at
-     * the point of use. {@code RegistryEvent.Register} is one of those generic events, which is
-     * why the block lookups below happen at load-complete instead of inside a registry event.
+     * the point of use.
      */
     public static void register(IEventBus modBus) {
         modBus.addListener(FarmlandBlocks::onLoadComplete);
-        net.minecraftforge.common.MinecraftForge.EVENT_BUS.addListener(FarmlandBlocks::onUseHoe);
+        MinecraftForge.EVENT_BUS.addListener(FarmlandBlocks::onUseHoe);
         BLOCKS.register(modBus);
         ITEMS.register(modBus);
+        LOOT_MODIFIERS.register(modBus);
     }
 
-    /** Adds one farmland. {@code soil} is what it drops and reverts to when trampled. */
+    /**
+     * The fertilised counterpart of one of our farmlands, or null when the block is not ours.
+     * Used by the bone meal ability hook.
+     */
+    public static Block fertilisedFor(Block farmland) {
+        ensureBound();
+        return FERTILISED_BY_FARMLAND.get(farmland);
+    }
+
+    /** Adds one soil: its farmland and its fertilised farmland, plus both items. */
     private static void add(String name, String soil, String grass) {
         RegistryObject<Block> block = BLOCKS.register(name,
                 () -> new AoAFarmlandBlock(properties(), null));
         ITEMS.register(name, () -> new BlockItem(block.get(),
                 new Item.Properties().tab(TAB)));
+
+        String fertilisedName = name.replace("_farmland", "_fertilised_farmland");
+        RegistryObject<Block> fertilised = BLOCKS.register(fertilisedName,
+                () -> new AoaFertilisedFarmlandBlock(properties(), null));
+        ITEMS.register(fertilisedName, () -> new BlockItem(fertilised.get(),
+                new Item.Properties().tab(TAB)));
+
         if (icon == null) {
             icon = block;
         }
-        SOILS.add(new Soil(soil, grass, MOD_ID + ":" + name, block));
+        SOILS.add(new Soil(soil, grass, MOD_ID + ":" + name, block, fertilised));
     }
 
     private static Block.Properties properties() {
@@ -133,7 +152,7 @@ public final class FarmlandBlocks {
     }
 
     /**
-     * Resolves every AoA soil (and its grass) to the farmland added for it.
+     * Resolves every AoA soil (and its grass) to the blocks added for it.
      *
      * <p>Deliberately not done inside a registry event: those fire once per mod in an unspecified
      * order, so looking AoA's blocks up while registration is still running would find them
@@ -166,6 +185,13 @@ public final class FarmlandBlocks {
                 if (farmland instanceof AoAFarmlandBlock) {
                     ((AoAFarmlandBlock) farmland).setSoil(soilBlock);
                 }
+                Block fertilised = soil.fertilised.get();
+                if (fertilised instanceof AoaFertilisedFarmlandBlock) {
+                    AoaFertilisedFarmlandBlock fertile = (AoaFertilisedFarmlandBlock) fertilised;
+                    fertile.setSoil(soilBlock);
+                    fertile.setFarmland(farmland);
+                    FERTILISED_BY_FARMLAND.put(farmland, fertilised);
+                }
                 for (String source : new String[] { soil.soil, soil.grass }) {
                     Block from = block(source);
                     if (from != null) {
@@ -175,8 +201,8 @@ public final class FarmlandBlocks {
                 boundSoils++;
             }
             bound = true;
-            LOGGER.info("AoA farmland addon active: {} AoA soils and their grass can be tilled "
-                    + "({} source blocks)", boundSoils, BY_SOURCE.size());
+            LOGGER.info("AoA farmland addon active: {} AoA soils, {} source blocks, {} farmlands",
+                    boundSoils, BY_SOURCE.size(), boundSoils * 2);
         }
     }
 
@@ -187,8 +213,8 @@ public final class FarmlandBlocks {
     /**
      * Turns one of AoA's soils into the matching farmland, the way vanilla's hoe tills dirt.
      *
-     * <p>Setting {@link Event.Result#ALLOW} tells Forge the tilling was handled: it then spends one
-     * point of hoe durability itself, exactly as it would for vanilla dirt.
+     * <p>Setting {@link Event#getResult} to ALLOW tells Forge the tilling was handled: it then
+     * spends one point of hoe durability itself.
      */
     @SubscribeEvent
     public static void onUseHoe(UseHoeEvent event) {
@@ -230,22 +256,27 @@ public final class FarmlandBlocks {
         add("lunalyte_farmland",   "aoa3:lunalyte_dirt",   "aoa3:lunalyte_grass");
         add("lunasole_farmland",   "aoa3:lunasole_dirt",   "aoa3:lunasole_grass");
         add("weightless_farmland", "aoa3:weightless_dirt", "aoa3:weightless_grass");
+        LOOT_MODIFIERS.register("fertilised_farmland",
+                FertilisedFarmlandLootModifier.Serializer::new);
     }
 
     private FarmlandBlocks() {}
 
-    /** The three registry names that make up one soil's farmland. */
+    /** The names and block references that make up one soil's two farmlands. */
     private static final class Soil {
         private final String soil;
         private final String grass;
         private final String name;
         private final RegistryObject<Block> block;
+        private final RegistryObject<Block> fertilised;
 
-        private Soil(String soil, String grass, String name, RegistryObject<Block> block) {
+        private Soil(String soil, String grass, String name, RegistryObject<Block> block,
+                     RegistryObject<Block> fertilised) {
             this.soil = soil;
             this.grass = grass;
             this.name = name;
             this.block = block;
+            this.fertilised = fertilised;
         }
     }
 }

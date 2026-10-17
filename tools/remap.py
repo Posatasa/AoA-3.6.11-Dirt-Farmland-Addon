@@ -158,9 +158,13 @@ class Mappings:
         self.local_supertypes[name] = [s for s in supertypes if s]
 
     def _find_declaring(self, starts, name, params):
-        """Walks the jar hierarchy from each of `starts` and returns the declaring class."""
-        if not self.hierarchy:
-            return None
+        """Walks the hierarchy from each of `starts` and returns the declaring class.
+
+        Both kinds of parent are followed: the game's own classes come from the MCP jar, and ours
+        come from `local_supertypes`. That second part matters as soon as we have our own
+        inheritance chain - a subclass of our own block resolves an inherited `defaultBlockState`
+        through the intermediate class, which the jar knows nothing about.
+        """
         seen = set()
         stack = [s for s in starts if s]
         while stack:
@@ -168,11 +172,14 @@ class Mappings:
             if current in seen:
                 continue
             seen.add(current)
-            if (name, params) in self.hierarchy.members.get(current, ()):
+            if self.hierarchy and (name, params) in self.hierarchy.members.get(current, ()):
                 return current
-            if current in self.hierarchy.supers:
-                stack.append(self.hierarchy.supers[current])
-            stack.extend(self.hierarchy.interfaces.get(current, ()))
+            if self.hierarchy:
+                if current in self.hierarchy.supers:
+                    stack.append(self.hierarchy.supers[current])
+                stack.extend(self.hierarchy.interfaces.get(current, ()))
+            if current in self.local_supertypes:
+                stack.extend(self.local_supertypes[current])
         return None
 
     @staticmethod

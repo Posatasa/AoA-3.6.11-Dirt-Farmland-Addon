@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/template_farmland",
+  "textures": {
+    "top": "aoa3farmland:block/candied_fertilised_farmland_well",
+    "dirt": "aoa3:block/candied_dirt"
+  }
+}

@@ -2,17 +2,26 @@
   "mappings": {
     "com/posatasa/aoa3farmland/mixin/MixinMayPlaceOn": {
       "mayPlaceOn": "func_200014_a_"
+    },
+    "com/posatasa/aoa3farmland/mixin/MixinGreenManure": {
+      "destroy": "func_176206_d"
     }
   },
   "data": {
     "searge": {
       "com/posatasa/aoa3farmland/mixin/MixinMayPlaceOn": {
         "mayPlaceOn": "func_200014_a_"
+      },
+      "com/posatasa/aoa3farmland/mixin/MixinGreenManure": {
+        "destroy": "func_176206_d"
       }
     },
     "named": {
       "com/posatasa/aoa3farmland/mixin/MixinMayPlaceOn": {
         "mayPlaceOn": "mayPlaceOn"
+      },
+      "com/posatasa/aoa3farmland/mixin/MixinGreenManure": {
+        "destroy": "destroy"
       }
     }
   }
