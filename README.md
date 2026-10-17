@@ -77,6 +77,24 @@ tilled out of stone would not read as farmland.
 Ships Java code, a mixin and data, so it must be on the server. It adds no client-only rendering,
 and clients that do not have it installed can still join a server that does.
 
+## Status
+
+1.2.2 is the current, tested release. Every block, both conversion directions, the bone meal
+ability, the green manure crop and the harvest bonus have been played through in game.
+
+**Planned: a special effect per soil.** The idea is that each of the eleven farmlands does something
+of its own — a soil that suits one kind of crop, or that does something when harvested, and so on.
+Not started yet. Whoever picks it up should know two things before designing it:
+
+- AoA's own soils already have per-block behaviour in places (dirt that hurts, soil that is only
+  found in one dimension). Anything here should either extend that or clearly sit on top of it,
+  rather than contradict it.
+- `AoAFarmlandBlock` is the single place all 22 blocks share, and `AoaFertilisedFarmlandBlock`
+  layers AoA's `well_fertilised` state on top of it. A per-soil effect most likely wants a third
+  field alongside the existing `soil` link (set in `FarmlandBlocks#ensureBound`), not a subclass per
+  soil — ten more block classes would mean ten more loot tables, models and state definitions for
+  no gain.
+
 ## 3. AoA licensing
 
 Advent of Ascension is source-visible but **not** open source, and its license forbids
@@ -128,6 +146,20 @@ project is not affiliated with or endorsed by Tslat. This add-on itself is MIT �
    出现任何 AoA 类名，关联只靠注册名；随包发布的纹理全部由原版 `dirt` / `farmland` /
    `farmland_moist` 推导而来，模型里只是按路径引用 AoA 自己的泥土纹理。AoA 许可证允许制作与分发
    附属。本附属自身为 MIT。
+
+## 状态
+
+当前定版 **1.2.2**，已实测通过：22 块方块、双向转化、骨粉能力、绿肥、收获加成全部在游戏里走过一遍。
+
+**后续计划：每种耕地各自的特殊效果。** 想法是让这 11 种耕地各有点自己的性子——适合某种作物、
+收获时触发点什么，诸如此类。还没开始做。将来接手前值得先知道两点：
+
+- 虚无世界自己的泥土本来就有一些按方块区分的机制（有的会伤害、有的只出现在某个维度）。新效果
+  最好是顺着它做、或者明确叠在它上面，而不是和它打架。
+- 22 块方块共享实现的两个类是 `AoAFarmlandBlock`（所有方块）和 `AoaFertilisedFarmlandBlock`
+  （叠加 `well_fertilised`）。每个土的特殊效果更适合在现有的 `soil` 关联旁边再加一个字段
+  （在 `FarmlandBlocks#ensureBound` 里填），而不是每种土派生一个子类——那样会白白多出十套
+  掉落表、模型和状态定义。
 
 ## Building
 
