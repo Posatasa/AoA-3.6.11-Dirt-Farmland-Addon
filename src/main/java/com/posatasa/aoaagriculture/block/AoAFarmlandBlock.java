@@ -7,6 +7,7 @@ import net.minecraft.block.FarmlandBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.fluid.FluidState;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.item.BlockItemUseContext;
 import net.minecraft.util.Direction;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockReader;
@@ -102,7 +103,26 @@ public class AoAFarmlandBlock extends FarmlandBlock {
                 && ForgeHooks.onFarmlandTrample(world, pos, state, fallDistance, entity)) {
             turnToSoil(state, world, pos);
         }
-        super.fallOn(world, pos, entity, fallDistance);
+        // Deliberately not chaining to super. FarmlandBlock#fallOn runs the very same trample test
+        // and then turns the result into minecraft:dirt, so calling it would undo the line above.
+        // That is not a rare edge: Entity#canTrample rolls a random number, so the second call
+        // re-rolls independently and the block ended up as AoA soil or vanilla dirt depending on
+        // two coin flips - which is exactly the "sometimes" this bug looked like.
+    }
+
+    /**
+     * Vanilla answers {@code minecraft:dirt} here when the spot cannot hold farmland (a solid block
+     * above it, or something that is not soil underneath). This answers the AoA soil instead, so
+     * placing one of these blocks never produces vanilla dirt either.
+     */
+    @Override
+    public BlockState getStateForPlacement(BlockItemUseContext context) {
+        if (!defaultBlockState().canSurvive(context.getLevel(), context.getClickedPos())) {
+            Block target = soil == null ? Blocks.DIRT : soil;
+            return target.defaultBlockState();
+        }
+        // What Block#getStateForPlacement answers, without going through FarmlandBlock's version.
+        return defaultBlockState();
     }
 
     /**

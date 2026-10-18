@@ -24,6 +24,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 
 import remap  # noqa: E402  (local module)
+import verify_refs  # noqa: E402  (local module)
 
 GRADLE_HOME = os.path.join(os.path.expanduser("~"), ".gradle")
 MCP_JAR = os.path.join(
@@ -258,20 +259,29 @@ def verify_block_properties(staging):
 
 
 def verify_turn_to_soil_paths(staging):
-    """Checks that all three ways farmland can be destroyed are overridden.
+    """Checks that every way farmland can be destroyed is overridden, and that none chains to vanilla.
 
-    Vanilla turns farmland into dirt from three places - trampling (`fallOn`), a block being placed
-    on top (`tick`), and drying out (`randomTick`) - and it does so through a *static* helper that
-    names `Blocks.DIRT` directly. Static calls have no virtual dispatch, so each of those three
-    methods has to be overridden for the block to become its own soil. Missing one is silent: the
-    block simply reverts to vanilla dirt on that particular path, which is exactly the bug this
-    check exists for.
+    Vanilla turns farmland into dirt from four places, each naming `Blocks.DIRT` directly:
+
+    * trampling (`fallOn`)
+    * a block being placed on top (`tick`)
+    * drying out (`randomTick`)
+    * being *placed* where farmland cannot survive (`getStateForPlacement`)
+
+    The first three reach a *static* helper, so no virtual dispatch gets in the way; the fourth
+    returns a dirt state straight out of the placement method. Each therefore has to be overridden
+    for the block to become its own soil - and, the part that actually bit, none of them may call
+    the superclass version: `FarmlandBlock#fallOn` runs the same trample test again and converts
+    whatever is there to dirt, undoing the override. Because `Entity#canTrample` rolls a random
+    number, that double conversion showed up as an intermittent bug rather than a constant one.
     """
-    REQUIRED = ("fallOn", "tick", "randomTick")
+    REQUIRED = ("fallOn", "tick", "randomTick", "getStateForPlacement")
+    VANILLA = "net/minecraft/block/FarmlandBlock"
     path = os.path.join(staging, "classes-mcp", "com", "posatasa", "aoaagriculture", "block",
                         "AoAFarmlandBlock.class")
     with open(path, "rb") as fh:
-        cls = remap.ClassFile(fh.read())
+        data = fh.read()
+    cls = remap.ClassFile(data)
     declared = {name for name, _ in cls.declared_members()}
 
     missing = [name for name in REQUIRED if name not in declared]
@@ -279,7 +289,16 @@ def verify_turn_to_soil_paths(staging):
         raise SystemExit("AoAFarmlandBlock does not override %s; vanilla would turn these blocks "
                          "into minecraft:dirt on that path instead of their AoA soil."
                          % ", ".join(missing))
-    print("block reverts to its soil on all three vanilla paths (%s)" % ", ".join(REQUIRED))
+
+    _, _, methods = verify_refs.references(data)
+    chained = sorted({name for owner, name, _ in methods
+                      if owner == VANILLA and name in REQUIRED + ("turnToDirt",)})
+    if chained:
+        raise SystemExit("AoAFarmlandBlock calls FarmlandBlock#%s, whose body converts the block "
+                         "to minecraft:dirt; the override must not chain to it."
+                         % ", ".join(chained))
+    print("block reverts to its soil on all four vanilla paths (%s), and never chains to vanilla"
+          % ", ".join(REQUIRED))
 
 
 def verify_aoa_bridge(aoa_jar):
