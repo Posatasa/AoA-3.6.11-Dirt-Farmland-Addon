@@ -5,6 +5,12 @@
     },
     "com/posatasa/aoaagriculture/mixin/MixinGreenManure": {
       "destroy": "func_176206_d"
+    },
+    "com/posatasa/aoaagriculture/mixin/MixinCropGrowth": {
+      "getGrowthSpeed": "func_180672_a"
+    },
+    "com/posatasa/aoaagriculture/mixin/MixinMushroomColony": {
+      "randomTick": "func_225542_b_"
     }
   },
   "data": {
@@ -14,6 +20,12 @@
       },
       "com/posatasa/aoaagriculture/mixin/MixinGreenManure": {
         "destroy": "func_176206_d"
+      },
+      "com/posatasa/aoaagriculture/mixin/MixinCropGrowth": {
+        "getGrowthSpeed": "func_180672_a"
+      },
+      "com/posatasa/aoaagriculture/mixin/MixinMushroomColony": {
+        "randomTick": "func_225542_b_"
       }
     },
     "named": {
@@ -22,6 +34,12 @@
       },
       "com/posatasa/aoaagriculture/mixin/MixinGreenManure": {
         "destroy": "destroy"
+      },
+      "com/posatasa/aoaagriculture/mixin/MixinCropGrowth": {
+        "getGrowthSpeed": "getGrowthSpeed"
+      },
+      "com/posatasa/aoaagriculture/mixin/MixinMushroomColony": {
+        "randomTick": "randomTick"
       }
     }
   }

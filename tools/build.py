@@ -342,6 +342,47 @@ def verify_aoa_bridge(aoa_jar):
     print("AoA skill API matches the Farming experience bridge (%d members)"
           % len(wanted))
 
+    verify_aoa_block_names(staging, aoa_jar)
+
+
+def verify_aoa_block_names(staging, aoa_jar):
+    """Checks that every AoA block name this add-on uses exists in the installed AoA jar.
+
+    All of AoA's cooperation is by registry name, so a typo or a renamed block would neither fail
+    to compile nor crash: the feature it belongs to would simply never trigger. This pulls the
+    `aoa3:...` strings back out of the compiled classes and looks each one up in AoA's blockstate
+    files, which is one per registered block.
+    """
+    import zipfile
+
+    with zipfile.ZipFile(aoa_jar) as jar:
+        known = {entry.rsplit("/", 1)[-1][:-len(".json")]
+                 for entry in jar.namelist()
+                 if entry.startswith("assets/aoa3/blockstates/") and entry.endswith(".json")}
+
+    used = {}
+    for root, _, files in os.walk(staging):
+        for name in files:
+            if not name.endswith(".class"):
+                continue
+            with open(os.path.join(root, name), "rb") as fh:
+                data = fh.read()
+            cls = remap.ClassFile(data)
+            for i in range(1, cls.count):
+                entry = cls.entries[i]
+                if entry is None or entry[0] != remap.CONSTANT_UTF8:
+                    continue
+                text = cls.utf8(i)
+                if text.startswith("aoa3:"):
+                    used.setdefault(text, set()).add(name)
+
+    missing = sorted(name for name in used if name.split(":", 1)[1] not in known)
+    if missing:
+        raise SystemExit("these AoA block names do not exist in the installed AoA jar:\n  "
+                         + "\n  ".join("%s (%s)" % (name, ", ".join(sorted(used[name])))
+                                       for name in missing))
+    print("every AoA block name the mod uses exists (%d names)" % len(used))
+
 
 def verify_refmap(mappings, tsrg_path, srg_jar):
     """Checks that every name in the committed mixin refmap is the right SRG name.
@@ -369,17 +410,27 @@ def verify_refmap(mappings, tsrg_path, srg_jar):
         if not os.path.isfile(expected):
             raise SystemExit("mixin %s is listed in the config but was not compiled" % mixin)
 
-    # The methods these mixins inject into, per target class.
+    # The methods these mixins inject into, per source name. `mayPlaceOn` lives on BushBlock too -
+    # CropsBlock and the stem blocks inherit or override the same method - which is why the owner
+    # list has four entries for one name.
     TARGETS = {
         "mayPlaceOn": (
             ["net/minecraft/block/CropsBlock", "net/minecraft/block/StemBlock",
-             "net/minecraft/block/AttachedStemBlock"],
+             "net/minecraft/block/AttachedStemBlock", "net/minecraft/block/BushBlock"],
             "(Lnet/minecraft/block/BlockState;Lnet/minecraft/world/IBlockReader;"
             "Lnet/minecraft/util/math/BlockPos;)Z"),
         "destroy": (
             ["net/minecraft/block/Block"],
             "(Lnet/minecraft/world/IWorld;Lnet/minecraft/util/math/BlockPos;"
             "Lnet/minecraft/block/BlockState;)V"),
+        "getGrowthSpeed": (
+            ["net/minecraft/block/CropsBlock"],
+            "(Lnet/minecraft/block/Block;Lnet/minecraft/world/IBlockReader;"
+            "Lnet/minecraft/util/math/BlockPos;)F"),
+        "randomTick": (
+            ["net/minecraft/block/MushroomBlock"],
+            "(Lnet/minecraft/block/BlockState;Lnet/minecraft/world/server/ServerWorld;"
+            "Lnet/minecraft/util/math/BlockPos;Ljava/util/Random;)V"),
     }
 
     srg = verify_refs.load_srg(srg_jar)

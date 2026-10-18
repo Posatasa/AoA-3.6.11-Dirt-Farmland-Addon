@@ -4,6 +4,9 @@ import com.posatasa.aoaagriculture.block.AoAFarmlandBlock;
 import com.posatasa.aoaagriculture.block.AoaFertilisedFarmlandBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.SoundType;
+import net.minecraft.block.Blocks;
+import java.util.HashSet;
+import java.util.Set;
 import net.minecraft.block.material.Material;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
@@ -88,6 +91,46 @@ public final class FarmlandBlocks {
      */
     private static final Map<Block, Block> BY_SOURCE = new HashMap<>();
 
+    /** Our farmland or fertilised farmland -> the AoA soil it belongs to. */
+    private static final Map<Block, Block> SOIL_OF = new HashMap<>();
+
+    /**
+     * AoA crop -> the AoA soils whose farmland speeds that crop up.
+     *
+     * <p>Each crop belongs to the dimension its soil comes from, so growing it on that soil's
+     * farmland (plain or fertilised) doubles its growth speed. Crops from the list AoA grows
+     * without any soil of their own are left out: tea, heart fruit, the thorny plant, the
+     * trilliad, eye bulbs, magic marang and green manure have no matching dirt, so there is
+     * nothing to reward.
+     */
+    private static final String[][] BONUS_CROPS = {
+            {"aoa3:bubble_berry_crop", "aoa3:coral_soil"},
+            {"aoa3:floracles_crop", "aoa3:coral_soil"},
+            {"aoa3:chilli_crop", "aoa3:aromatic_dirt"},
+            {"aoa3:goldicaps_crop", "aoa3:aromatic_dirt"},
+            {"aoa3:rosidon_crop", "aoa3:aromatic_dirt"},
+            // Both moons share Lunalyte and Lunasole soil between them.
+            {"aoa3:luna_globe_crop", "aoa3:lunalyte_dirt"},
+            {"aoa3:luna_globe_crop", "aoa3:lunasole_dirt"},
+            {"aoa3:lunacrike_crop", "aoa3:lunalyte_dirt"},
+            {"aoa3:lunacrike_crop", "aoa3:lunasole_dirt"},
+            {"aoa3:lunalon_crop", "aoa3:lunalyte_dirt"},
+            {"aoa3:lunalon_crop", "aoa3:lunasole_dirt"},
+            {"aoa3:mystic_shroom_crop", "aoa3:fungal_dirt"},
+    };
+
+    /** AoA crop -> the soils that speed it up. Filled by {@link #ensureBound()}. */
+    private static final Map<Block, Set<Block>> BONUS_SOILS = new HashMap<>();
+
+    /** The two AoA soils Farmer's Delight's rich soil behaviour is extended to. */
+    private static final String[] COLONY_SOILS = {"aoa3:blackened_soil", "aoa3:fungal_dirt"};
+
+    /** Vanilla mushroom -> Farmer's Delight's colony block for it, if that mod is installed. */
+    private static final Map<Block, Block> COLONIES = new HashMap<>();
+
+    /** The AoA soils that behave like Farmer's Delight's rich soil for mushrooms. */
+    private static final Set<Block> colonySoils = new HashSet<>();
+
     private static volatile boolean bound;
 
     /**
@@ -114,6 +157,33 @@ public final class FarmlandBlocks {
     public static Block fertilisedFor(Block farmland) {
         ensureBound();
         return FERTILISED_BY_FARMLAND.get(farmland);
+    }
+
+    /** The AoA soil a farmland or fertilised farmland belongs to, or null if it is not ours. */
+    public static Block soilOf(Block farmland) {
+        ensureBound();
+        return SOIL_OF.get(farmland);
+    }
+
+    /** True when {@code crop} is an AoA crop that grows faster on the farmland {@code below}. */
+    public static boolean speedsUpCrop(Block crop, Block below) {
+        ensureBound();
+        Block soil = SOIL_OF.get(below);
+        if (soil == null) {
+            return false;
+        }
+        Set<Block> soils = BONUS_SOILS.get(crop);
+        return soils != null && soils.contains(soil);
+    }
+
+    /**
+     * Farmer's Delight's colony block for this mushroom, when it sits on one of the two AoA soils
+     * that are meant to behave like rich soil; null otherwise, including when Farmer's Delight is
+     * not installed.
+     */
+    public static Block colonyFor(Block mushroom, Block below) {
+        ensureBound();
+        return colonySoils.contains(below) ? COLONIES.get(mushroom) : null;
     }
 
     /** Adds one soil: its farmland and its fertilised farmland, plus both items. */
@@ -185,12 +255,14 @@ public final class FarmlandBlocks {
                 if (farmland instanceof AoAFarmlandBlock) {
                     ((AoAFarmlandBlock) farmland).setSoil(soilBlock);
                 }
+                SOIL_OF.put(farmland, soilBlock);
                 Block fertilised = soil.fertilised.get();
                 if (fertilised instanceof AoaFertilisedFarmlandBlock) {
                     AoaFertilisedFarmlandBlock fertile = (AoaFertilisedFarmlandBlock) fertilised;
                     fertile.setSoil(soilBlock);
                     fertile.setFarmland(farmland);
                     FERTILISED_BY_FARMLAND.put(farmland, fertilised);
+                    SOIL_OF.put(fertilised, soilBlock);
                 }
                 for (String source : new String[] { soil.soil, soil.grass }) {
                     Block from = block(source);
@@ -200,9 +272,38 @@ public final class FarmlandBlocks {
                 }
                 boundSoils++;
             }
+
+            for (String[] entry : BONUS_CROPS) {
+                Block crop = block(entry[0]);
+                Block soilBlock = block(entry[1]);
+                if (crop == null || soilBlock == null) {
+                    LOGGER.warn("AoA crop {} or soil {} is missing; no growth bonus for it",
+                            entry[0], entry[1]);
+                    continue;
+                }
+                BONUS_SOILS.computeIfAbsent(crop, key -> new HashSet<>()).add(soilBlock);
+            }
+
+            // Farmer's Delight is optional: without it these stay absent and the mushroom hook
+            // does nothing, rather than turning mushrooms into air.
+            Block brown = block("farmersdelight:brown_mushroom_colony");
+            Block red = block("farmersdelight:red_mushroom_colony");
+            if (brown != null) {
+                COLONIES.put(Blocks.BROWN_MUSHROOM, brown);
+            }
+            if (red != null) {
+                COLONIES.put(Blocks.RED_MUSHROOM, red);
+            }
+            for (String name : COLONY_SOILS) {
+                if (block(name) != null) {
+                    colonySoils.add(block(name));
+                }
+            }
+
             bound = true;
-            LOGGER.info("AoA Agriculture active: {} AoA soils, {} source blocks, {} farmlands",
-                    boundSoils, BY_SOURCE.size(), boundSoils * 2);
+            LOGGER.info("AoA Agriculture active: {} AoA soils, {} farmlands, {} speed-up crops, "
+                            + "{} colony soils",
+                    boundSoils, boundSoils * 2, BONUS_SOILS.size(), colonySoils.size());
         }
     }
 

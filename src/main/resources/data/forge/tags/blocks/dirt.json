@@ -3,15 +3,26 @@
   "replace": false,
   "values": [
     "aoaagriculture:aromatic_farmland",
+    "aoaagriculture:aromatic_fertilised_farmland",
     "aoaagriculture:blackened_farmland",
+    "aoaagriculture:blackened_fertilised_farmland",
     "aoaagriculture:candied_farmland",
+    "aoaagriculture:candied_fertilised_farmland",
     "aoaagriculture:celevian_farmland",
+    "aoaagriculture:celevian_fertilised_farmland",
     "aoaagriculture:coral_farmland",
+    "aoaagriculture:coral_fertilised_farmland",
     "aoaagriculture:creep_farmland",
+    "aoaagriculture:creep_fertilised_farmland",
     "aoaagriculture:fungal_farmland",
+    "aoaagriculture:fungal_fertilised_farmland",
     "aoaagriculture:greckon_farmland",
+    "aoaagriculture:greckon_fertilised_farmland",
     "aoaagriculture:lunalyte_farmland",
+    "aoaagriculture:lunalyte_fertilised_farmland",
     "aoaagriculture:lunasole_farmland",
-    "aoaagriculture:weightless_farmland"
+    "aoaagriculture:lunasole_fertilised_farmland",
+    "aoaagriculture:weightless_farmland",
+    "aoaagriculture:weightless_fertilised_farmland"
   ]
 }

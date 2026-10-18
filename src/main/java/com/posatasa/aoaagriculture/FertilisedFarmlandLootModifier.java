@@ -13,6 +13,8 @@ import net.minecraft.util.Direction;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.vector.Vector3d;
+import net.minecraftforge.common.PlantType;
+import net.minecraft.world.IBlockReader;
 import net.minecraftforge.common.IPlantable;
 import net.minecraftforge.common.loot.GlobalLootModifierSerializer;
 import net.minecraftforge.common.loot.LootModifier;
@@ -55,7 +57,7 @@ public class FertilisedFarmlandLootModifier extends LootModifier {
             return generatedLoot;
         }
         Block crop = cropState.getBlock();
-        if (!(crop instanceof CropsBlock) || isGreenManure(crop)) {
+        if (!isCrop(crop, context.getLevel(), new BlockPos(origin)) || isGreenManure(crop)) {
             return generatedLoot;
         }
 
@@ -73,9 +75,10 @@ public class FertilisedFarmlandLootModifier extends LootModifier {
         boolean well = below.getValue(AoaFertilisedFarmlandBlock.WELL_FERTILISED);
         int bonus = well ? 2 : 1;
 
-        // AoA excludes the crop's own seed item from the bonus, so a farm cannot bootstrap itself.
-        ItemStack seeds = ((CropsBlock) crop).getCloneItemStack(context.getLevel(),
-                new BlockPos(origin), cropState);
+        // The crop's own seed item is excluded from the bonus, so a farm cannot bootstrap itself.
+        // Block#getCloneItemStack is what vanilla uses for this, and crops override it to return
+        // their seeds - including Farmer's Delight's tomato, which is not a CropsBlock.
+        ItemStack seeds = crop.getCloneItemStack(context.getLevel(), new BlockPos(origin), cropState);
         ListIterator<ItemStack> iterator = generatedLoot.listIterator();
         while (iterator.hasNext()) {
             ItemStack stack = iterator.next();
@@ -114,6 +117,24 @@ public class FertilisedFarmlandLootModifier extends LootModifier {
                     below.getValue(net.minecraft.block.FarmlandBlock.MOISTURE));
         }
         return state;
+    }
+
+    /**
+     * A crop is anything that belongs on farmland: vanilla and AoA crops, and other mods' crop-type
+     * plants that are not {@code CropsBlock}s - Farmer's Delight's tomato is a {@code BushBlock}
+     * that reports {@link PlantType#CROP}.
+     *
+     * <p>Note this only ever sees a *broken* block's loot table. Farmer's Delight's tomato is
+     * picked by right-clicking instead, which drops its items directly without consulting a loot
+     * table - so picking gives no bonus and steps nothing down, exactly as asked, while breaking
+     * with a left click still does both.
+     */
+    private static boolean isCrop(Block crop, IBlockReader world, BlockPos pos) {
+        if (crop instanceof CropsBlock) {
+            return true;
+        }
+        return crop instanceof IPlantable
+                && ((IPlantable) crop).getPlantType(world, pos) == PlantType.CROP;
     }
 
     private static boolean isGreenManure(Block crop) {

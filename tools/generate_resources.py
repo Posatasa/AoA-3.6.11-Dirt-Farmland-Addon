@@ -273,12 +273,17 @@ def generate_resources():
                                                                  "Fertilised Farmland")
         zh["block.aoaagriculture." + fertilised] = chinese.replace("耕地", "肥沃耕地")
         dirt_tag.append(bid)
+        dirt_tag.append("aoaagriculture:" + fertilised)
 
     write_json(os.path.join(ASSETS, "lang", "en_us.json"), en)
     write_json(os.path.join(ASSETS, "lang", "zh_cn.json"), zh)
 
     # These blocks are dirt that happens to be tilled, so they join AoA's own dirt tag; the entry
     # list is deliberately explicit rather than "the forge:dirt tag" so it cannot go circular.
+    #
+    # Being in this tag does not make them hoe-tillable: Forge's tilling rule is a hardcoded
+    # dirt -> farmland map, not a tag test. What it does affect is other mods' "is this soil?"
+    # checks, which is the point.
     write_json(os.path.join(DATA, "forge", "tags", "blocks", "dirt.json"), {
         "_comment": "The AoA farmland this add-on adds still counts as dirt.",
         "replace": False,
