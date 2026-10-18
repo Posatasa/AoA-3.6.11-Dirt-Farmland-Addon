@@ -201,7 +201,7 @@ public final class FarmlandBlocks {
                 boundSoils++;
             }
             bound = true;
-            LOGGER.info("AoA farmland addon active: {} AoA soils, {} source blocks, {} farmlands",
+            LOGGER.info("AoA Agriculture active: {} AoA soils, {} source blocks, {} farmlands",
                     boundSoils, BY_SOURCE.size(), boundSoils * 2);
         }
     }
