@@ -1,7 +1,0 @@
-{
-  "parent": "minecraft:block/template_farmland",
-  "textures": {
-    "top": "aoa3farmland:block/fungal_farmland",
-    "dirt": "aoa3:block/fungal_dirt"
-  }
-}

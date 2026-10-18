@@ -1,7 +1,0 @@
-{
-  "parent": "minecraft:block/template_farmland",
-  "textures": {
-    "top": "aoa3farmland:block/blackened_farmland_moist",
-    "dirt": "aoa3:block/blackened_soil"
-  }
-}

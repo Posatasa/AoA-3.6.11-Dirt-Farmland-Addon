@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/template_farmland",
+  "textures": {
+    "top": "aoaagriculture:block/lunasole_farmland",
+    "dirt": "aoa3:block/lunasole_dirt"
+  }
+}

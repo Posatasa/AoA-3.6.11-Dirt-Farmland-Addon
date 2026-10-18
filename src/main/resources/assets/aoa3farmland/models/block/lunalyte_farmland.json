@@ -1,7 +1,0 @@
-{
-  "parent": "minecraft:block/template_farmland",
-  "textures": {
-    "top": "aoa3farmland:block/lunalyte_farmland",
-    "dirt": "aoa3:block/lunalyte_dirt"
-  }
-}

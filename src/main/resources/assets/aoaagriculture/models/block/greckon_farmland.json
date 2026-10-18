@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/template_farmland",
+  "textures": {
+    "top": "aoaagriculture:block/greckon_farmland",
+    "dirt": "aoa3:block/greckon_dirt"
+  }
+}

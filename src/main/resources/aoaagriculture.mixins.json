@@ -1,0 +1,16 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.posatasa.aoaagriculture.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "aoaagriculture.refmap.json",
+  "mixins": [
+    "MixinMayPlaceOn",
+    "MixinFertiliseFarmland",
+    "MixinGreenManure"
+  ],
+  "injectors": {
+    "defaultRequire": 0,
+    "maxShiftBy": 2
+  }
+}

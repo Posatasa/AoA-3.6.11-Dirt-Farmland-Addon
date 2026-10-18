@@ -3,37 +3,35 @@ loaderVersion="[36,)"
 license="MIT"
 
 [[mods]]
-modId="aoa3farmland"
+modId="aoaagriculture"
 version="${version}"
-displayName="AoA3 Farmland Addon"
+displayName="AoA Agriculture"
 authors="Posatasa"
 description='''
-A small add-on for Advent of Ascension 3 (Minecraft 1.16.5, AoA 3.6.11) that adds a farmland
-variant for every dirt-type block AoA adds to the forge:dirt tag, so hoes work on AoA soil the
-same way they work on vanilla dirt.
+Adds a farmland block for every dirt-type block Advent of Ascension 3 adds to forge:dirt, so hoes
+work on AoA soil the same way they work on vanilla dirt, plus the fertilised counterpart AoA's
+farming system expects for each of them.
 
-Each farmland behaves exactly like vanilla farmland (same block class, same moisture and
-trampling rules), drops its own AoA soil when broken, and is textured with the vanilla farmland
-pattern recoloured to that soil's palette.
-
-It contains none of AoA's code or assets.
+Each farmland behaves like vanilla farmland (same moisture and trampling rules, same three ways of
+reverting), drops its own AoA soil when broken, and uses the vanilla farmland pattern in that
+soil's colour.
 '''
 
-[[dependencies.aoa3farmland]]
+[[dependencies.aoaagriculture]]
     modId="forge"
     mandatory=true
     versionRange="[36,)"
     ordering="NONE"
     side="BOTH"
 
-[[dependencies.aoa3farmland]]
+[[dependencies.aoaagriculture]]
     modId="minecraft"
     mandatory=true
     versionRange="[1.16.5,1.17)"
     ordering="NONE"
     side="BOTH"
 
-[[dependencies.aoa3farmland]]
+[[dependencies.aoaagriculture]]
     modId="aoa3"
     mandatory=true
     # AoA versions the whole build, so the mod version literally reads "1.16.5-3.6.11" and the

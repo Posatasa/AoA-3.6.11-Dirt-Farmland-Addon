@@ -18,16 +18,16 @@ import java.lang.reflect.Modifier;
 public class VerifyAgainstSrg {
     public static void main(String[] args) throws Exception {
         String[] names = {
-                "com.posatasa.aoa3farmland.AddonFarmland",
-                "com.posatasa.aoa3farmland.FarmlandBlocks",
-                "com.posatasa.aoa3farmland.FarmlandBlocks$1",
-                "com.posatasa.aoa3farmland.block.AoAFarmlandBlock",
-                "com.posatasa.aoa3farmland.block.AoaFertilisedFarmlandBlock",
-                "com.posatasa.aoa3farmland.FertilisedFarmlandLootModifier",
-                "com.posatasa.aoa3farmland.FertilisedFarmlandLootModifier$Serializer",
-                "com.posatasa.aoa3farmland.mixin.MixinMayPlaceOn",
-                "com.posatasa.aoa3farmland.mixin.MixinFertiliseFarmland",
-                "com.posatasa.aoa3farmland.mixin.MixinGreenManure",
+                "com.posatasa.aoaagriculture.AddonFarmland",
+                "com.posatasa.aoaagriculture.FarmlandBlocks",
+                "com.posatasa.aoaagriculture.FarmlandBlocks$1",
+                "com.posatasa.aoaagriculture.block.AoAFarmlandBlock",
+                "com.posatasa.aoaagriculture.block.AoaFertilisedFarmlandBlock",
+                "com.posatasa.aoaagriculture.FertilisedFarmlandLootModifier",
+                "com.posatasa.aoaagriculture.FertilisedFarmlandLootModifier$Serializer",
+                "com.posatasa.aoaagriculture.mixin.MixinMayPlaceOn",
+                "com.posatasa.aoaagriculture.mixin.MixinFertiliseFarmland",
+                "com.posatasa.aoaagriculture.mixin.MixinGreenManure",
         };
         ClassLoader loader = VerifyAgainstSrg.class.getClassLoader();
         int failures = 0;

@@ -33,7 +33,7 @@ MC_JAR = os.path.expanduser(
     r"~\.gradle\caches\forge_gradle\minecraft_repo\versions\1.16.5\client-extra.jar")
 AOA_JAR = r"C:\Users\admin\curseforge\minecraft\Instances\Wuhui\mods\AoA3-1.16.5-3.6.11.jar"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ASSETS = os.path.join(ROOT, "src", "main", "resources", "assets", "aoa3farmland")
+ASSETS = os.path.join(ROOT, "src", "main", "resources", "assets", "aoaagriculture")
 DATA = os.path.join(ROOT, "src", "main", "resources", "data")
 
 # registry name -> (AoA soil texture/block name, AoA soil block id, English, Chinese)
@@ -51,9 +51,9 @@ SOILS = [
     ("weightless_farmland", "weightless_dirt", "aoa3:weightless_dirt", "Weightless Farmland", "轻盈耕地"),
 ]
 
-TAB_KEY = "itemGroup.aoa3farmland"
-TAB_EN = "AoA3 Farmland"
-TAB_ZH = "虚无世界耕地"
+TAB_KEY = "itemGroup.aoaagriculture"
+TAB_EN = "AoA Agriculture"
+TAB_ZH = "虚无世界农业"
 
 # FarmlandBlock#MOISTURE runs 0..7, and vanilla draws 0..6 with one texture and 7 with another.
 MOISTURE_LEVELS = 8
@@ -216,14 +216,14 @@ def generate_resources():
         write_json(os.path.join(models_dir, model + ".json"), {
             "parent": "minecraft:block/template_farmland",
             "textures": {
-                "top": "aoa3farmland:block/" + model,
+                "top": "aoaagriculture:block/" + model,
                 "dirt": "aoa3:block/" + soil_texture,
             },
         })
         return model
 
     for name, texture, soil, english, chinese in SOILS:
-        bid = "aoa3farmland:" + name
+        bid = "aoaagriculture:" + name
         fertilised = fertilised_name(name)
 
         # ---- plain farmland: exactly vanilla's split, dry for 0..6 and moist at 7
@@ -231,33 +231,33 @@ def generate_resources():
         for level in range(MOISTURE_LEVELS):
             suffix = "_moist" if level == WET_LEVEL else ""
             variants["moisture=%d" % level] = {
-                "model": "aoa3farmland:block/" + model_name(name, suffix, False)}
+                "model": "aoaagriculture:block/" + model_name(name, suffix, False)}
         write_json(os.path.join(blockstates_dir, name + ".json"), {"variants": variants})
         write_model(name, "", False, texture)
         write_model(name, "_moist", False, texture)
         # The item shows the dry state, like vanilla's farmland item.
         write_json(os.path.join(ASSETS, "models", "item", name + ".json"),
-                   {"parent": "aoa3farmland:block/" + name})
+                   {"parent": "aoaagriculture:block/" + name})
 
         # ---- fertilised farmland: AoA's extra `well_fertilised` state, same moisture split
         variants = {}
         for level in range(MOISTURE_LEVELS):
             suffix = "_moist" if level == WET_LEVEL else ""
             variants["moisture=%d,well_fertilised=false" % level] = {
-                "model": "aoa3farmland:block/" + model_name(name, suffix, True)}
+                "model": "aoaagriculture:block/" + model_name(name, suffix, True)}
             variants["moisture=%d,well_fertilised=true" % level] = {
-                "model": "aoa3farmland:block/" + model_name(name, "_well" + suffix, True)}
+                "model": "aoaagriculture:block/" + model_name(name, "_well" + suffix, True)}
         write_json(os.path.join(blockstates_dir, fertilised + ".json"), {"variants": variants})
         write_model(name, "", True, texture)
         write_model(name, "_moist", True, texture)
         write_model(name, "_well", True, texture)
         write_model(name, "_well_moist", True, texture)
         write_json(os.path.join(ASSETS, "models", "item", fertilised + ".json"),
-                   {"parent": "aoa3farmland:block/" + fertilised})
+                   {"parent": "aoaagriculture:block/" + fertilised})
 
         # loot: both drop the AoA soil they were tilled from, not vanilla dirt
         for lootName in (name, fertilised):
-            write_json(os.path.join(DATA, "aoa3farmland", "loot_tables", "blocks",
+            write_json(os.path.join(DATA, "aoaagriculture", "loot_tables", "blocks",
                                     lootName + ".json"), {
                 "type": "minecraft:block",
                 "pools": [{
@@ -267,11 +267,11 @@ def generate_resources():
                 }],
             })
 
-        en["block.aoa3farmland." + name] = english
-        zh["block.aoa3farmland." + name] = chinese
-        en["block.aoa3farmland." + fertilised] = english.replace("Farmland",
+        en["block.aoaagriculture." + name] = english
+        zh["block.aoaagriculture." + name] = chinese
+        en["block.aoaagriculture." + fertilised] = english.replace("Farmland",
                                                                  "Fertilised Farmland")
-        zh["block.aoa3farmland." + fertilised] = chinese.replace("耕地", "肥沃耕地")
+        zh["block.aoaagriculture." + fertilised] = chinese.replace("耕地", "肥沃耕地")
         dirt_tag.append(bid)
 
     write_json(os.path.join(ASSETS, "lang", "en_us.json"), en)
@@ -287,16 +287,16 @@ def generate_resources():
 
     # The harvest modifier: AoA does this for its own fertilised farmland with a global loot
     # modifier; ours is the per-soil equivalent, registered the same way.
-    write_json(os.path.join(DATA, "aoa3farmland", "loot_modifiers",
+    write_json(os.path.join(DATA, "aoaagriculture", "loot_modifiers",
                             "fertilised_farmland.json"), {
         "conditions": [],
-        "type": "aoa3farmland:fertilised_farmland",
+        "type": "aoaagriculture:fertilised_farmland",
     })
     write_json(os.path.join(DATA, "forge", "loot_modifiers",
                             "global_loot_modifiers.json"), {
         "_comment": "Adds this add-on's harvest modifier; AoA's own entries are merged in.",
         "replace": False,
-        "entries": ["aoa3farmland:fertilised_farmland"],
+        "entries": ["aoaagriculture:fertilised_farmland"],
     })
 
 

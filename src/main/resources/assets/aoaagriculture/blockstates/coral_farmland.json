@@ -1,0 +1,28 @@
+{
+  "variants": {
+    "moisture=0": {
+      "model": "aoaagriculture:block/coral_farmland"
+    },
+    "moisture=1": {
+      "model": "aoaagriculture:block/coral_farmland"
+    },
+    "moisture=2": {
+      "model": "aoaagriculture:block/coral_farmland"
+    },
+    "moisture=3": {
+      "model": "aoaagriculture:block/coral_farmland"
+    },
+    "moisture=4": {
+      "model": "aoaagriculture:block/coral_farmland"
+    },
+    "moisture=5": {
+      "model": "aoaagriculture:block/coral_farmland"
+    },
+    "moisture=6": {
+      "model": "aoaagriculture:block/coral_farmland"
+    },
+    "moisture=7": {
+      "model": "aoaagriculture:block/coral_farmland_moist"
+    }
+  }
+}

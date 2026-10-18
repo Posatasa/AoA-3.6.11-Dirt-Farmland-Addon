@@ -15,7 +15,7 @@ public class VerifyListeners {
         Class<?> genericEvent = Class.forName("net.minecraftforge.eventbus.api.GenericEvent");
         // initialize=false: only the signatures are needed, and running the static initialiser
         // would register blocks outside a mod-loading context.
-        Class<?> mod = Class.forName("com.posatasa.aoa3farmland.FarmlandBlocks", false,
+        Class<?> mod = Class.forName("com.posatasa.aoaagriculture.FarmlandBlocks", false,
                 VerifyListeners.class.getClassLoader());
         int checked = 0;
         int failures = 0;

@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/template_farmland",
+  "textures": {
+    "top": "aoaagriculture:block/creep_farmland_moist",
+    "dirt": "aoa3:block/creep_dirt"
+  }
+}

@@ -1,7 +1,0 @@
-{
-  "parent": "minecraft:block/template_farmland",
-  "textures": {
-    "top": "aoa3farmland:block/creep_fertilised_farmland_well",
-    "dirt": "aoa3:block/creep_dirt"
-  }
-}

@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/template_farmland",
+  "textures": {
+    "top": "aoaagriculture:block/celevian_farmland",
+    "dirt": "aoa3:block/celevian_dirt"
+  }
+}

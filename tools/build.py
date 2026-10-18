@@ -38,7 +38,7 @@ SRG_JAR = os.path.join(
     "forge", "1.16.5-36.2.34", "forge-1.16.5-36.2.34-srg.jar")
 JDK8 = r"C:\Program Files\Java\jdk-1.8"
 
-MOD_ID = "aoa3farmland"
+MOD_ID = "aoaagriculture"
 
 
 def read_properties():
@@ -231,7 +231,7 @@ def verify_block_properties(staging):
     MCP names.
     """
     REQUIRED = ("randomTicks", "strength", "sound", "isSuffocating", "isViewBlocking")
-    path = os.path.join(staging, "classes-mcp", "com", "posatasa", "aoa3farmland",
+    path = os.path.join(staging, "classes-mcp", "com", "posatasa", "aoaagriculture",
                         "FarmlandBlocks.class")
     with open(path, "rb") as fh:
         cls = remap.ClassFile(fh.read())
@@ -268,7 +268,7 @@ def verify_turn_to_soil_paths(staging):
     check exists for.
     """
     REQUIRED = ("fallOn", "tick", "randomTick")
-    path = os.path.join(staging, "classes-mcp", "com", "posatasa", "aoa3farmland", "block",
+    path = os.path.join(staging, "classes-mcp", "com", "posatasa", "aoaagriculture", "block",
                         "AoAFarmlandBlock.class")
     with open(path, "rb") as fh:
         cls = remap.ClassFile(fh.read())
@@ -333,8 +333,8 @@ def verify_refmap(mappings, tsrg_path, srg_jar):
     twice: against the TSRG tables, and against the method that actually exists in the SRG jar.
     """
     import verify_refs
-    config_path = os.path.join(ROOT, "src", "main", "resources", "aoa3farmland.mixins.json")
-    refmap_path = os.path.join(ROOT, "src", "main", "resources", "aoa3farmland.refmap.json")
+    config_path = os.path.join(ROOT, "src", "main", "resources", "aoaagriculture.mixins.json")
+    refmap_path = os.path.join(ROOT, "src", "main", "resources", "aoaagriculture.refmap.json")
     with open(config_path, encoding="utf-8") as fh:
         config = json.load(fh)
     with open(refmap_path, encoding="utf-8") as fh:
@@ -404,7 +404,7 @@ def verify_resources(resources_dir, aoa_jar):
     per moisture level), so a typo in the generator would otherwise only show up as a missing model
     in game. References into AoA's namespace are checked against the AoA jar when one was found.
     """
-    assets_root = os.path.join(resources_dir, "assets", "aoa3farmland")
+    assets_root = os.path.join(resources_dir, "assets", "aoaagriculture")
     ours = set()
     for root, _, files in os.walk(assets_root):
         for filename in files:
@@ -423,7 +423,7 @@ def verify_resources(resources_dir, aoa_jar):
         """Resolves "namespace:path" to a file under assets/<ns>/<kind>/ — `kind` is the asset
         root ("models" or "textures"), and the reference path already carries its subfolder."""
         ns, _, path = reference.partition(":")
-        if ns == "aoa3farmland":
+        if ns == "aoaagriculture":
             wanted = "%s/%s%s" % (kind, path, _extension(kind))
             return wanted in ours, wanted
         if ns == "aoa3":
@@ -455,7 +455,7 @@ def verify_resources(resources_dir, aoa_jar):
         with open(os.path.join(assets_root, entry), encoding="utf-8") as fh:
             data = json.load(fh)
         parent = data.get("parent")
-        if parent and parent.partition(":")[0] == "aoa3farmland":
+        if parent and parent.partition(":")[0] == "aoaagriculture":
             ok, wanted = resolves(parent, "models")
             if not ok:
                 problems.append("%s: parent -> missing %s" % (entry, wanted))
@@ -476,10 +476,10 @@ def verify_resources(resources_dir, aoa_jar):
     blocks = [e[len("blockstates/"):-len(".json")] for e in sorted(ours)
               if e.startswith("blockstates/")]
     for language, table in languages.items():
-        if "itemGroup.aoa3farmland" not in table:
-            problems.append("%s: missing itemGroup.aoa3farmland" % language)
+        if "itemGroup.aoaagriculture" not in table:
+            problems.append("%s: missing itemGroup.aoaagriculture" % language)
         for block in blocks:
-            if "block.aoa3farmland." + block not in table:
+            if "block.aoaagriculture." + block not in table:
                 problems.append("%s: missing name for %s" % (language, block))
 
     # The fertilised blocks carry AoA's extra `well_fertilised` state, so their blockstates must
@@ -498,13 +498,13 @@ def verify_resources(resources_dir, aoa_jar):
 
     # The harvest modifier only runs if its data files line up with the registered serializer.
     data_root = os.path.join(resources_dir, "data")
-    modifier = os.path.join(data_root, "aoa3farmland", "loot_modifiers",
+    modifier = os.path.join(data_root, "aoaagriculture", "loot_modifiers",
                             "fertilised_farmland.json")
     if not os.path.isfile(modifier):
-        problems.append("missing data/aoa3farmland/loot_modifiers/fertilised_farmland.json")
+        problems.append("missing data/aoaagriculture/loot_modifiers/fertilised_farmland.json")
     else:
         with open(modifier, encoding="utf-8") as fh:
-            if json.load(fh).get("type") != "aoa3farmland:fertilised_farmland":
+            if json.load(fh).get("type") != "aoaagriculture:fertilised_farmland":
                 problems.append("the harvest modifier's type must be its serializer id")
     global_modifiers = os.path.join(data_root, "forge", "loot_modifiers",
                                     "global_loot_modifiers.json")
@@ -513,7 +513,7 @@ def verify_resources(resources_dir, aoa_jar):
     else:
         with open(global_modifiers, encoding="utf-8") as fh:
             entries = json.load(fh).get("entries", [])
-        if "aoa3farmland:fertilised_farmland" not in entries:
+        if "aoaagriculture:fertilised_farmland" not in entries:
             problems.append("the harvest modifier is not registered in the global list")
         if json.load(open(global_modifiers, encoding="utf-8")).get("replace"):
             problems.append("the global loot modifier list must merge, not replace")
@@ -610,7 +610,7 @@ def build(staging, out_jar):
         "Implementation-Title: %s\n"
         "Implementation-Version: %s\n"
         "Implementation-Vendor: %s\n"
-        "MixinConfigs: aoa3farmland.mixins.json\n"
+        "MixinConfigs: aoaagriculture.mixins.json\n"
         "\n" % (MOD_ID, props["mod_authors"], MOD_ID, VERSION, props["mod_authors"])
     ).replace("\n", "\r\n")
 

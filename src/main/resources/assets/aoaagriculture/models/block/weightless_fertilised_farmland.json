@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/template_farmland",
+  "textures": {
+    "top": "aoaagriculture:block/weightless_fertilised_farmland",
+    "dirt": "aoa3:block/weightless_dirt"
+  }
+}

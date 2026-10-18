@@ -1,0 +1,28 @@
+{
+  "mappings": {
+    "com/posatasa/aoaagriculture/mixin/MixinMayPlaceOn": {
+      "mayPlaceOn": "func_200014_a_"
+    },
+    "com/posatasa/aoaagriculture/mixin/MixinGreenManure": {
+      "destroy": "func_176206_d"
+    }
+  },
+  "data": {
+    "searge": {
+      "com/posatasa/aoaagriculture/mixin/MixinMayPlaceOn": {
+        "mayPlaceOn": "func_200014_a_"
+      },
+      "com/posatasa/aoaagriculture/mixin/MixinGreenManure": {
+        "destroy": "func_176206_d"
+      }
+    },
+    "named": {
+      "com/posatasa/aoaagriculture/mixin/MixinMayPlaceOn": {
+        "mayPlaceOn": "mayPlaceOn"
+      },
+      "com/posatasa/aoaagriculture/mixin/MixinGreenManure": {
+        "destroy": "destroy"
+      }
+    }
+  }
+}
