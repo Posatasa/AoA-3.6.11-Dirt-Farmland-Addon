@@ -9,7 +9,8 @@
     "MixinFertiliseFarmland",
     "MixinGreenManure",
     "MixinCropGrowth",
-    "MixinMushroomColony"
+    "MixinMushroomColony",
+    "MixinMushroomColonySurvive"
   ],
   "injectors": {
     "defaultRequire": 0,

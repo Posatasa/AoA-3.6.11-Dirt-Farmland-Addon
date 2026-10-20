@@ -186,6 +186,12 @@ public final class FarmlandBlocks {
         return colonySoils.contains(below) ? COLONIES.get(mushroom) : null;
     }
 
+    /** True when this block is one of the soils meant to behave like Farmer's Delight's rich soil. */
+    public static boolean isColonySoil(Block below) {
+        ensureBound();
+        return colonySoils.contains(below);
+    }
+
     /** Adds one soil: its farmland and its fertilised farmland, plus both items. */
     private static void add(String name, String soil, String grass) {
         RegistryObject<Block> block = BLOCKS.register(name,

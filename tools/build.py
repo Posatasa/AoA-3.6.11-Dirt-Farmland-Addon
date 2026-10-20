@@ -346,8 +346,51 @@ def verify_aoa_bridge(aoa_jar):
     verify_aoa_block_names(staging, aoa_jar)
 
 
+def verify_optional_integrations(staging, resources_dir, remapped_dir):
+    """Checks that Farmer's Delight stayed optional.
+
+    The rule is that only AoA is a prerequisite: with Farmer's Delight absent, none of the content
+    that exists for it may appear. Three things could quietly break that, so all three are checked:
+
+    * a Farmer's Delight class referenced from our code (would fail to load without it);
+    * a dependency entry in mods.toml (would refuse to start);
+    * a *vanilla* tag file, such as minecraft:mushroom_grow_block - vanilla reads several of them,
+      so adding AoA soils to one makes vanilla content appear even without Farmer's Delight. That
+      exact file was shipped once and is the reason this check exists.
+    """
+    problems = []
+    for root, _, files in os.walk(remapped_dir):
+        for name in files:
+            if not name.endswith(".class"):
+                continue
+            with open(os.path.join(root, name), "rb") as fh:
+                cls = remap.ClassFile(fh.read())
+            for i in range(1, cls.count):
+                entry = cls.entries[i]
+                if entry is None or entry[0] != remap.CONSTANT_CLASS:
+                    continue
+                ref = cls.utf8(cls.u2(entry[1]))
+                if ref.startswith(("vectorwing/", "farmersdelight/")):
+                    problems.append("%s links against the Farmer's Delight type %s" % (name, ref))
+
+    with open(os.path.join(resources_dir, "META-INF", "mods.toml"), encoding="utf-8") as fh:
+        toml = fh.read()
+    if "farmersdelight" in toml.lower():
+        problems.append("mods.toml mentions Farmer's Delight; it must not be a dependency")
+
+    vanilla_tag = os.path.join(resources_dir, "data", "minecraft", "tags", "blocks",
+                               "mushroom_grow_block.json")
+    if os.path.isfile(vanilla_tag):
+        problems.append("data/minecraft/tags/blocks/mushroom_grow_block.json would enable giant "
+                        "mushrooms even without Farmer's Delight")
+
+    if problems:
+        raise SystemExit("Farmer's Delight must stay optional:\n  " + "\n  ".join(problems))
+    print("Farmer's Delight stays optional (no class link, no dependency, no vanilla tag)")
+
+
 def verify_colony_soils(resources_dir):
-    """Checks that the soils which form colonies are also in the tags that let a colony grow.
+    """Checks that the soils which form colonies are in the tag that lets a colony grow.
 
     Farmer's Delight converts a mushroom into a colony near its rich soil, and ages a colony only on
     blocks in `farmersdelight:mushroom_colony_growable_on` (it also needs
@@ -367,8 +410,7 @@ def verify_colony_soils(resources_dir):
     if not soils:
         raise SystemExit("FarmlandBlocks.COLONY_SOILS is empty")
 
-    for path in ("data/minecraft/tags/blocks/mushroom_grow_block.json",
-                 "data/farmersdelight/tags/blocks/mushroom_colony_growable_on.json"):
+    for path in ("data/farmersdelight/tags/blocks/mushroom_colony_growable_on.json",):
         full = os.path.join(resources_dir, path.replace("/", os.sep))
         if not os.path.isfile(full):
             raise SystemExit("missing %s; colonies there would not survive or not grow" % path)
@@ -378,7 +420,7 @@ def verify_colony_soils(resources_dir):
         if missing:
             raise SystemExit("%s does not list %s, so colonies on those soils never grow"
                              % (path, ", ".join(missing)))
-    print("colony soils match both growth tags (%s)" % ", ".join(sorted(soils)))
+    print("colony soils match the colony growth tag (%s)" % ", ".join(sorted(soils)))
 
 
 def verify_aoa_block_names(staging, aoa_jar):
@@ -463,6 +505,10 @@ def verify_refmap(mappings, tsrg_path, srg_jar):
             ["net/minecraft/block/CropsBlock"],
             "(Lnet/minecraft/block/Block;Lnet/minecraft/world/IBlockReader;"
             "Lnet/minecraft/util/math/BlockPos;)F"),
+        "canSurvive": (
+            ["net/minecraft/block/BushBlock"],
+            "(Lnet/minecraft/block/BlockState;Lnet/minecraft/world/IWorldReader;"
+            "Lnet/minecraft/util/math/BlockPos;)Z"),
         "randomTick": (
             ["net/minecraft/block/MushroomBlock"],
             "(Lnet/minecraft/block/BlockState;Lnet/minecraft/world/server/ServerWorld;"
@@ -708,6 +754,7 @@ def build(staging, out_jar):
     props = expand_mods_toml(resources)
     verify_resources(resources, aoa)
     verify_colony_soils(resources)
+    verify_optional_integrations(staging, resources, remapped)
 
     manifest = (
         "Manifest-Version: 1.0\n"

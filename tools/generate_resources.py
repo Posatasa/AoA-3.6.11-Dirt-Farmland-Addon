@@ -215,6 +215,16 @@ def generate_resources():
     blockstates_dir = os.path.join(ASSETS, "blockstates")
     clean(models_dir)
     clean(blockstates_dir)
+    # The three tag directories are generated too, and a tag that stops being written has to stop
+    # existing: one of them was dropped from this script but stayed in the source tree and kept
+    # being shipped, which quietly undid the change.
+    for owner, path in (("minecraft", "mushroom_grow_block"),
+                        ("farmersdelight", "mushroom_colony_growable_on"),
+                        ("forge", "dirt")):
+        tag_dir = os.path.join(DATA, owner, "tags", "blocks")
+        stale = os.path.join(tag_dir, path + ".json")
+        if os.path.isfile(stale):
+            os.remove(stale)
 
     def write_model(block, suffix, fertilised, soil_texture):
         model = model_name(block, suffix, fertilised)
@@ -294,20 +304,18 @@ def generate_resources():
         "values": dirt_tag,
     })
 
-    # The two soils that behave like Farmer's Delight's rich soil for mushrooms need to be in two
-    # tags, because that is how Farmer's Delight makes its own rich soil work:
+    # A colony only *ages* on blocks in Farmer's Delight's own tag, which ships with nothing but
+    # farmersdelight:rich_soil - that is why colonies used to freeze at their first stage.
     #
-    #   minecraft:mushroom_grow_block              - a colony may *survive* on it at any light level
-    #   farmersdelight:mushroom_colony_growable_on - a colony *ages* on it
-    #
-    # Missing the second one is what left colonies stuck at their first stage: they only age on
-    # farmersdelight:rich_soil. Both files merge into the existing tags (`replace: false`).
-    for namespace, path in (("minecraft", "mushroom_grow_block"),
-                            ("farmersdelight", "mushroom_colony_growable_on")):
-        write_json(os.path.join(DATA, namespace, "tags", "blocks", path + ".json"), {
-            "replace": False,
-            "values": COLONY_SOILS,
-        })
+    # Deliberately not using minecraft:mushroom_grow_block to keep them alive instead: that tag is
+    # read by vanilla, so adding our soils to it would let giant mushrooms grow on them even when
+    # Farmer's Delight is not installed. Colonies survive on these soils through an FD-targeted
+    # mixin instead (MixinMushroomColonySurvive), which only applies while that mod is present.
+    write_json(os.path.join(DATA, "farmersdelight", "tags", "blocks",
+                            "mushroom_colony_growable_on.json"), {
+        "replace": False,
+        "values": COLONY_SOILS,
+    })
 
     # The harvest modifier: AoA does this for its own fertilised farmland with a global loot
     # modifier; ours is the per-soil equivalent, registered the same way.
