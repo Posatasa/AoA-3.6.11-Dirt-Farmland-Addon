@@ -13,6 +13,7 @@ import glob
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -345,6 +346,41 @@ def verify_aoa_bridge(aoa_jar):
     verify_aoa_block_names(staging, aoa_jar)
 
 
+def verify_colony_soils(resources_dir):
+    """Checks that the soils which form colonies are also in the tags that let a colony grow.
+
+    Farmer's Delight converts a mushroom into a colony near its rich soil, and ages a colony only on
+    blocks in `farmersdelight:mushroom_colony_growable_on` (it also needs
+    `minecraft:mushroom_grow_block` to survive at any light level). Two lists therefore have to
+    agree: `FarmlandBlocks.COLONY_SOILS`, which decides where conversion happens, and those tags.
+    They were out of step once, and the symptom was colonies frozen at their first stage - which
+    reads as a growth bug instead of a missing tag.
+    """
+    source_path = os.path.join(ROOT, "src", "main", "java", "com", "posatasa", "aoaagriculture",
+                               "FarmlandBlocks.java")
+    with open(source_path, encoding="utf-8") as fh:
+        source = fh.read()
+    match = re.search(r"COLONY_SOILS\s*=\s*\{([^}]*)\}", source)
+    if not match:
+        raise SystemExit("FarmlandBlocks has no COLONY_SOILS table")
+    soils = set(re.findall(r'"(aoa3:[a-z_]+)"', match.group(1)))
+    if not soils:
+        raise SystemExit("FarmlandBlocks.COLONY_SOILS is empty")
+
+    for path in ("data/minecraft/tags/blocks/mushroom_grow_block.json",
+                 "data/farmersdelight/tags/blocks/mushroom_colony_growable_on.json"):
+        full = os.path.join(resources_dir, path.replace("/", os.sep))
+        if not os.path.isfile(full):
+            raise SystemExit("missing %s; colonies there would not survive or not grow" % path)
+        with open(full, encoding="utf-8") as fh:
+            values = set(json.load(fh).get("values", []))
+        missing = sorted(soils - values)
+        if missing:
+            raise SystemExit("%s does not list %s, so colonies on those soils never grow"
+                             % (path, ", ".join(missing)))
+    print("colony soils match both growth tags (%s)" % ", ".join(sorted(soils)))
+
+
 def verify_aoa_block_names(staging, aoa_jar):
     """Checks that every AoA block name this add-on uses exists in the installed AoA jar.
 
@@ -671,6 +707,7 @@ def build(staging, out_jar):
     shutil.copytree(os.path.join(ROOT, "src", "main", "resources"), resources)
     props = expand_mods_toml(resources)
     verify_resources(resources, aoa)
+    verify_colony_soils(resources)
 
     manifest = (
         "Manifest-Version: 1.0\n"

@@ -3,7 +3,7 @@
 Adds a farmland block for every dirt block in [Advent of Ascension 3](https://github.com/Tslat/Advent-Of-Ascension)
 **1.16.5-3.6.11**, so a hoe works on AoA soil the same way it works on vanilla dirt.
 
-**Download:** [`dist/aoaagriculture-1.2.7-beta.jar`](dist/aoaagriculture-1.2.7-beta.jar) - drop it in `mods/`.
+**Download:** [`dist/aoaagriculture-1.2.8-beta.jar`](dist/aoaagriculture-1.2.8-beta.jar) - drop it in `mods/`.
 
 ## Side: BOTH
 

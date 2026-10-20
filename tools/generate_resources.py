@@ -51,6 +51,11 @@ SOILS = [
     ("weightless_farmland", "weightless_dirt", "aoa3:weightless_dirt", "Weightless Farmland", "轻盈耕地"),
 ]
 
+# The AoA soils that act like Farmer's Delight's rich soil for mushrooms. Mirrored by
+# FarmlandBlocks.COLONY_SOILS in Java, and the build cross-checks the two so a soil cannot end up
+# converting mushrooms without the tag that lets the colony grow.
+COLONY_SOILS = ["aoa3:blackened_soil", "aoa3:fungal_dirt"]
+
 TAB_KEY = "itemGroup.aoaagriculture"
 TAB_EN = "AoA Agriculture"
 TAB_ZH = "虚无世界农业"
@@ -283,12 +288,26 @@ def generate_resources():
     #
     # Being in this tag does not make them hoe-tillable: Forge's tilling rule is a hardcoded
     # dirt -> farmland map, not a tag test. What it does affect is other mods' "is this soil?"
-    # checks, which is the point.
+    # checks, which is the point. Tag files carry no comment key: they are parsed as data.
     write_json(os.path.join(DATA, "forge", "tags", "blocks", "dirt.json"), {
-        "_comment": "The AoA farmland this add-on adds still counts as dirt.",
         "replace": False,
         "values": dirt_tag,
     })
+
+    # The two soils that behave like Farmer's Delight's rich soil for mushrooms need to be in two
+    # tags, because that is how Farmer's Delight makes its own rich soil work:
+    #
+    #   minecraft:mushroom_grow_block              - a colony may *survive* on it at any light level
+    #   farmersdelight:mushroom_colony_growable_on - a colony *ages* on it
+    #
+    # Missing the second one is what left colonies stuck at their first stage: they only age on
+    # farmersdelight:rich_soil. Both files merge into the existing tags (`replace: false`).
+    for namespace, path in (("minecraft", "mushroom_grow_block"),
+                            ("farmersdelight", "mushroom_colony_growable_on")):
+        write_json(os.path.join(DATA, namespace, "tags", "blocks", path + ".json"), {
+            "replace": False,
+            "values": COLONY_SOILS,
+        })
 
     # The harvest modifier: AoA does this for its own fertilised farmland with a global loot
     # modifier; ours is the per-soil equivalent, registered the same way.

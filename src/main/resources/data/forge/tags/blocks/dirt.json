@@ -1,5 +1,4 @@
 {
-  "_comment": "The AoA farmland this add-on adds still counts as dirt.",
   "replace": false,
   "values": [
     "aoaagriculture:aromatic_farmland",
