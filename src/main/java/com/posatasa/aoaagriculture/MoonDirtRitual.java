@@ -5,16 +5,11 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.particles.ParticleTypes;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.SoundCategory;
-import net.minecraft.util.SoundEvent;
-import net.minecraft.util.SoundEvents;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.registries.ForgeRegistries;
 
-import java.util.Random;
 
 /**
  * The moon soil ritual at AoA's petal crafting station.
@@ -39,14 +34,12 @@ public final class MoonDirtRitual {
     private static final String ROSID_ROOT = "aoa3:rosid_root";
     private static final String PINK_MOON_SOIL = "aoa3:lunalyte_dirt";
     private static final String BLUE_MOON_SOIL = "aoa3:lunasole_dirt";
-    private static final String STATION_SOUND = "aoa3:block.petal_crafting_station.use";
 
     private static boolean resolved;
     private static Item lunarIngot;
     private static Item rosidRoot;
     private static Item pinkMoonSoil;
     private static Item blueMoonSoil;
-    private static SoundEvent stationSound;
 
     /**
      * Runs the ritual if this interaction is one, and reports whether it was.
@@ -85,8 +78,7 @@ public final class MoonDirtRitual {
                 consume(player, lunarIngot, 1);
             }
             convert(player, batch, moonSoil);
-            world.playSound(null, pos, stationSound, SoundCategory.BLOCKS, 1.0F, 0.8F);
-            sparkle(world, pos);
+            StationFx.play(world, pos, 0.8F);
         }
         return true;
     }
@@ -101,10 +93,6 @@ public final class MoonDirtRitual {
         rosidRoot = item(ROSID_ROOT);
         pinkMoonSoil = item(PINK_MOON_SOIL);
         blueMoonSoil = item(BLUE_MOON_SOIL);
-        stationSound = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(STATION_SOUND));
-        if (stationSound == null) {
-            stationSound = SoundEvents.ENCHANTMENT_TABLE_USE;
-        }
         return lunarIngot != null && rosidRoot != null && pinkMoonSoil != null
                 && blueMoonSoil != null;
     }
@@ -158,17 +146,6 @@ public final class MoonDirtRitual {
             remaining -= taken;
         }
         player.inventory.setChanged();
-    }
-
-    private static void sparkle(World world, BlockPos pos) {
-        Random random = world.random;
-        for (int i = 0; i < 8; i++) {
-            world.addParticle(ParticleTypes.HAPPY_VILLAGER,
-                    pos.getX() + 0.2D + random.nextDouble() * 0.6D,
-                    pos.getY() + 0.6D + random.nextDouble() * 0.4D,
-                    pos.getZ() + 0.2D + random.nextDouble() * 0.6D,
-                    0.0D, 0.0D, 0.0D);
-        }
     }
 
     private MoonDirtRitual() {}

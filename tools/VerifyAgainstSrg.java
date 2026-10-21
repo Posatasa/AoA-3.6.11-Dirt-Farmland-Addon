@@ -23,6 +23,8 @@ public class VerifyAgainstSrg {
                 "com.posatasa.aoaagriculture.FarmlandBlocks$1",
                 "com.posatasa.aoaagriculture.FarmlandBlocks$Soil",
                 "com.posatasa.aoaagriculture.MoonDirtRitual",
+                "com.posatasa.aoaagriculture.StationFx",
+                "com.posatasa.aoaagriculture.CropCoinRitual",
                 "com.posatasa.aoaagriculture.block.AoAFarmlandBlock",
                 "com.posatasa.aoaagriculture.block.AoaFertilisedFarmlandBlock",
                 "com.posatasa.aoaagriculture.FertilisedFarmlandLootModifier",
