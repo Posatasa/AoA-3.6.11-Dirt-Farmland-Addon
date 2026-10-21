@@ -343,7 +343,7 @@ def verify_aoa_bridge(aoa_jar):
     print("AoA skill API matches the Farming experience bridge (%d members)"
           % len(wanted))
 
-    verify_aoa_block_names(staging, aoa_jar)
+    verify_aoa_names(staging, aoa_jar)
 
 
 def verify_optional_integrations(staging, resources_dir, remapped_dir):
@@ -423,20 +423,26 @@ def verify_colony_soils(resources_dir):
     print("colony soils match the colony growth tag (%s)" % ", ".join(sorted(soils)))
 
 
-def verify_aoa_block_names(staging, aoa_jar):
-    """Checks that every AoA block name this add-on uses exists in the installed AoA jar.
+def verify_aoa_names(staging, aoa_jar):
+    """Checks that every AoA registry name and sound this add-on uses exists in the AoA jar.
 
-    All of AoA's cooperation is by registry name, so a typo or a renamed block would neither fail
-    to compile nor crash: the feature it belongs to would simply never trigger. This pulls the
-    `aoa3:...` strings back out of the compiled classes and looks each one up in AoA's blockstate
-    files, which is one per registered block.
+    All of AoA's cooperation is by name, so a typo or a renamed entry would neither fail to compile
+    nor crash: the feature it belongs to would simply never trigger. This pulls the `aoa3:...`
+    strings back out of the compiled classes and looks each one up - block names in AoA's blockstate
+    files (one per registered block), item names in its item models, and sound ids, which carry a
+    dot and live in sounds.json.
     """
     import zipfile
 
     with zipfile.ZipFile(aoa_jar) as jar:
-        known = {entry.rsplit("/", 1)[-1][:-len(".json")]
-                 for entry in jar.namelist()
-                 if entry.startswith("assets/aoa3/blockstates/") and entry.endswith(".json")}
+        entries = jar.namelist()
+        known = {
+            "block": {e.rsplit("/", 1)[-1][:-len(".json")] for e in entries
+                      if e.startswith("assets/aoa3/blockstates/") and e.endswith(".json")},
+            "item": {e.rsplit("/", 1)[-1][:-len(".json")] for e in entries
+                     if e.startswith("assets/aoa3/models/item/") and e.endswith(".json")},
+            "sound": set(json.loads(jar.read("assets/aoa3/sounds.json").decode("utf-8"))),
+        }
 
     used = {}
     for root, _, files in os.walk(staging):
@@ -454,12 +460,20 @@ def verify_aoa_block_names(staging, aoa_jar):
                 if text.startswith("aoa3:"):
                     used.setdefault(text, set()).add(name)
 
-    missing = sorted(name for name in used if name.split(":", 1)[1] not in known)
+    missing = []
+    for name in used:
+        path_part = name.split(":", 1)[1]
+        if "." in path_part:
+            found = path_part in known["sound"]
+        else:
+            found = path_part in known["block"] or path_part in known["item"]
+        if not found:
+            missing.append("%s (%s)" % (name, ", ".join(sorted(used[name]))))
+
     if missing:
-        raise SystemExit("these AoA block names do not exist in the installed AoA jar:\n  "
-                         + "\n  ".join("%s (%s)" % (name, ", ".join(sorted(used[name])))
-                                       for name in missing))
-    print("every AoA block name the mod uses exists (%d names)" % len(used))
+        raise SystemExit("these AoA names do not exist in the installed AoA jar:\n  "
+                         + "\n  ".join(sorted(missing)))
+    print("every AoA block, item and sound name the mod uses exists (%d names)" % len(used))
 
 
 def verify_refmap(mappings, tsrg_path, srg_jar):
@@ -505,6 +519,12 @@ def verify_refmap(mappings, tsrg_path, srg_jar):
             ["net/minecraft/block/CropsBlock"],
             "(Lnet/minecraft/block/Block;Lnet/minecraft/world/IBlockReader;"
             "Lnet/minecraft/util/math/BlockPos;)F"),
+        "use": (
+            ["net/minecraft/block/AbstractBlock"],
+            "(Lnet/minecraft/block/BlockState;Lnet/minecraft/world/World;"
+            "Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/entity/player/PlayerEntity;"
+            "Lnet/minecraft/util/Hand;Lnet/minecraft/util/math/BlockRayTraceResult;)"
+            "Lnet/minecraft/util/ActionResultType;"),
         "canSurvive": (
             ["net/minecraft/block/BushBlock"],
             "(Lnet/minecraft/block/BlockState;Lnet/minecraft/world/IWorldReader;"

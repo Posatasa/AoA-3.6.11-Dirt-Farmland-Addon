@@ -21,13 +21,20 @@ public class VerifyAgainstSrg {
                 "com.posatasa.aoaagriculture.AddonFarmland",
                 "com.posatasa.aoaagriculture.FarmlandBlocks",
                 "com.posatasa.aoaagriculture.FarmlandBlocks$1",
+                "com.posatasa.aoaagriculture.FarmlandBlocks$Soil",
+                "com.posatasa.aoaagriculture.MoonDirtRitual",
                 "com.posatasa.aoaagriculture.block.AoAFarmlandBlock",
                 "com.posatasa.aoaagriculture.block.AoaFertilisedFarmlandBlock",
                 "com.posatasa.aoaagriculture.FertilisedFarmlandLootModifier",
                 "com.posatasa.aoaagriculture.FertilisedFarmlandLootModifier$Serializer",
+                "com.posatasa.aoaagriculture.compat.AoASkillExperience",
                 "com.posatasa.aoaagriculture.mixin.MixinMayPlaceOn",
                 "com.posatasa.aoaagriculture.mixin.MixinFertiliseFarmland",
                 "com.posatasa.aoaagriculture.mixin.MixinGreenManure",
+                "com.posatasa.aoaagriculture.mixin.MixinCropGrowth",
+                "com.posatasa.aoaagriculture.mixin.MixinMushroomColony",
+                "com.posatasa.aoaagriculture.mixin.MixinMushroomColonySurvive",
+                "com.posatasa.aoaagriculture.mixin.MixinPetalCraftingStation",
         };
         ClassLoader loader = VerifyAgainstSrg.class.getClassLoader();
         int failures = 0;

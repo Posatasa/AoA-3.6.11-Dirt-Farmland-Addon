@@ -10,7 +10,8 @@
     "MixinGreenManure",
     "MixinCropGrowth",
     "MixinMushroomColony",
-    "MixinMushroomColonySurvive"
+    "MixinMushroomColonySurvive",
+    "MixinPetalCraftingStation"
   ],
   "injectors": {
     "defaultRequire": 0,

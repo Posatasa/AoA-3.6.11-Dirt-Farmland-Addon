@@ -14,6 +14,9 @@
     },
     "com/posatasa/aoaagriculture/mixin/MixinMushroomColonySurvive": {
       "canSurvive": "func_196260_a"
+    },
+    "com/posatasa/aoaagriculture/mixin/MixinPetalCraftingStation": {
+      "use": "func_225533_a_"
     }
   },
   "data": {
@@ -32,6 +35,9 @@
       },
       "com/posatasa/aoaagriculture/mixin/MixinMushroomColonySurvive": {
         "canSurvive": "func_196260_a"
+      },
+      "com/posatasa/aoaagriculture/mixin/MixinPetalCraftingStation": {
+        "use": "func_225533_a_"
       }
     },
     "named": {
@@ -49,6 +55,9 @@
       },
       "com/posatasa/aoaagriculture/mixin/MixinMushroomColonySurvive": {
         "canSurvive": "canSurvive"
+      },
+      "com/posatasa/aoaagriculture/mixin/MixinPetalCraftingStation": {
+        "use": "use"
       }
     }
   }
