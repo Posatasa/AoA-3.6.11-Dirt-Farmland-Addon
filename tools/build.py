@@ -233,7 +233,7 @@ def verify_block_properties(staging):
     MCP names.
     """
     REQUIRED = ("randomTicks", "strength", "sound", "isSuffocating", "isViewBlocking")
-    path = os.path.join(staging, "classes-mcp", "com", "posatasa", "aoaagriculture",
+    path = os.path.join(staging, "classes-mcp", "com", "posatasa", "aoaagriculture", "registry",
                         "FarmlandBlocks.class")
     with open(path, "rb") as fh:
         cls = remap.ClassFile(fh.read())
@@ -400,7 +400,7 @@ def verify_colony_soils(resources_dir):
     reads as a growth bug instead of a missing tag.
     """
     source_path = os.path.join(ROOT, "src", "main", "java", "com", "posatasa", "aoaagriculture",
-                               "FarmlandBlocks.java")
+                               "registry", "FarmlandBlocks.java")
     with open(source_path, encoding="utf-8") as fh:
         source = fh.read()
     match = re.search(r"COLONY_SOILS\s*=\s*\{([^}]*)\}", source)

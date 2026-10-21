@@ -1,7 +1,7 @@
 package com.posatasa.aoaagriculture.mixin;
 
-import com.posatasa.aoaagriculture.CropCoinRitual;
-import com.posatasa.aoaagriculture.MoonDirtRitual;
+import com.posatasa.aoaagriculture.ritual.CropCoinRitual;
+import com.posatasa.aoaagriculture.ritual.MoonDirtRitual;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;

@@ -1,6 +1,7 @@
-package com.posatasa.aoaagriculture;
+package com.posatasa.aoaagriculture.registry;
 
 import com.posatasa.aoaagriculture.block.AoAFarmlandBlock;
+import com.posatasa.aoaagriculture.loot.FertilisedFarmlandLootModifier;
 import com.posatasa.aoaagriculture.block.AoaFertilisedFarmlandBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.SoundType;

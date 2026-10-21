@@ -1,4 +1,4 @@
-package com.posatasa.aoaagriculture;
+package com.posatasa.aoaagriculture.loot;
 
 import com.google.gson.JsonObject;
 import com.posatasa.aoaagriculture.block.AoaFertilisedFarmlandBlock;

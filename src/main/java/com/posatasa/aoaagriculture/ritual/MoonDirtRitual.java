@@ -1,4 +1,4 @@
-package com.posatasa.aoaagriculture;
+package com.posatasa.aoaagriculture.ritual;
 
 import net.minecraft.block.Block;
 import net.minecraft.entity.player.PlayerEntity;

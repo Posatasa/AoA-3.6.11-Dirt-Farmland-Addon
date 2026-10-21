@@ -1,5 +1,6 @@
 package com.posatasa.aoaagriculture;
 
+import com.posatasa.aoaagriculture.registry.FarmlandBlocks;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
 

@@ -1,6 +1,6 @@
 package com.posatasa.aoaagriculture.mixin;
 
-import com.posatasa.aoaagriculture.FarmlandBlocks;
+import com.posatasa.aoaagriculture.registry.FarmlandBlocks;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IWorldReader;
