@@ -5,6 +5,7 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.fluid.Fluid;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.UseAction;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.SoundCategory;
@@ -17,13 +18,22 @@ import net.minecraft.world.World;
  * <p>Everything else about it is a normal bucket. Only the water is special; the Shyre lava and
  * candied water buckets are plain buckets, because there is nothing infinite about those.
  *
- * <p>The pour itself is vanilla's - this calls through to it and then throws its answer away, which
- * is what keeps the water. To get rid of the water the player holds the button down: that starts a
- * two-second use action, and the bucket empties when the action runs out. A shorter press only
- * pours, which is exactly the behaviour a bucket should still have.
+ * <p>The button is read as a hold rather than a click. Nothing is poured when it goes down, so a
+ * long press never splashes water on the way to emptying the bucket:
+ *
+ * <ul>
+ *   <li>released early - {@link #releaseUsing} pours, and the water stays in the bucket;
+ *   <li>held for the full two seconds - {@link #finishUsingItem} empties the bucket instead.
+ * </ul>
+ *
+ * <p>Two of these hooks are easy to get wrong, and this item did before: in 1.16.5 a completed hold
+ * goes through {@code finishUsingItem} (the same path eating takes), not {@code releaseUsing}, which
+ * only runs when the player lets go early. And the hold has to be started with
+ * {@code startUsingItem} explicitly - returning CONSUME does not begin one, which is why
+ * {@code BowItem} calls it too. The bow's pose is borrowed so the hold is visible.
  */
 public class InfiniteWaterBucketItem extends AoABucketItem {
-    /** How long the button has to be held for the bucket to empty: two seconds. */
+    /** How long the button has to be held: two seconds, the 40 ticks a bow also spends per second. */
     private static final int HOLD_TICKS = 40;
 
     public InfiniteWaterBucketItem(Fluid content, Item.Properties properties, BucketFamily family) {
@@ -35,37 +45,48 @@ public class InfiniteWaterBucketItem extends AoABucketItem {
         return HOLD_TICKS;
     }
 
-    /**
-     * Pours the water and keeps the bucket full.
-     *
-     * <p>The returned stack is deliberately discarded - vanilla's answer is the empty bucket, which
-     * is the whole point of the item. {@code startUsingItem} is required: in 1.16.5 returning
-     * {@code CONSUME} alone does not begin the use action, which is why {@code BowItem} calls it
-     * itself too.
-     */
+    /** The bow's pull-back pose, so the hold is visible rather than silent. */
+    @Override
+    public UseAction getUseAnimation(ItemStack stack) {
+        return UseAction.BOW;
+    }
+
+    /** Starts the hold. Nothing is poured yet; that is what keeps a long press from spilling. */
     @Override
     public ActionResult<ItemStack> use(World world, PlayerEntity player, Hand hand) {
         ItemStack stack = player.getItemInHand(hand);
-        super.use(world, player, hand);
         player.startUsingItem(hand);
         return ActionResult.consume(stack);
     }
 
-    /** Releasing after the full hold empties the bucket; a shorter press just stops the pour. */
+    /** Released early: an ordinary pour, and the water is kept. */
     @Override
     public void releaseUsing(ItemStack stack, World world, LivingEntity user, int timeLeft) {
-        if (timeLeft > 0 || !(user instanceof PlayerEntity)) {
+        if (world.isClientSide || timeLeft <= 0 || !(user instanceof PlayerEntity)) {
             return;
         }
-        Item empty = family.item(BucketFamily.Kind.EMPTY);
-        if (empty == null) {
-            return;
+        if (!(stack.getItem() instanceof InfiniteWaterBucketItem)) {
+            return;                                  // the hold already emptied it
         }
         PlayerEntity player = (PlayerEntity) user;
+        super.use(world, player, player.getUsedItemHand());
+    }
+
+    /**
+     * Held for the whole two seconds: the bucket empties.
+     *
+     * <p>This is the natural end of a use action, so the returned stack replaces the one in hand.
+     */
+    @Override
+    public ItemStack finishUsingItem(ItemStack stack, World world, LivingEntity user) {
+        Item empty = family.item(BucketFamily.Kind.EMPTY);
+        if (empty == null) {
+            return stack;
+        }
         if (!world.isClientSide) {
-            player.setItemInHand(player.getUsedItemHand(), new ItemStack(empty));
-            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+            world.playSound(null, user.getX(), user.getY(), user.getZ(),
                     SoundEvents.BUCKET_EMPTY, SoundCategory.PLAYERS, 1.0F, 1.4F);
         }
+        return new ItemStack(empty);
     }
 }

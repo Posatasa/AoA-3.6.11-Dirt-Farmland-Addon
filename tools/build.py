@@ -462,9 +462,12 @@ def verify_buckets(staging, remapped_dir):
                                 "item")
     required_overrides = {
         "AoABucketItem.class": ("getEmptySuccessItem", "use"),
-        # The Shyre water bucket pours without using itself up, and empties on a long hold, which is
-        # the use-action trio below. Missing any of them turns it into an ordinary bucket.
-        "InfiniteWaterBucketItem.class": ("use", "releaseUsing", "getUseDuration"),
+        # The Shyre water bucket pours without using itself up, and empties on a long hold. That
+        # needs the use action started explicitly (use), the early-release pour (releaseUsing), the
+        # completed-hold clear (finishUsingItem - a completed hold does NOT go through releaseUsing),
+        # the hold length, and an animation to show for it.
+        "InfiniteWaterBucketItem.class": ("use", "releaseUsing", "finishUsingItem",
+                                          "getUseDuration", "getUseAnimation"),
     }
     for filename, wanted in required_overrides.items():
         path = os.path.join(item_package, filename)
