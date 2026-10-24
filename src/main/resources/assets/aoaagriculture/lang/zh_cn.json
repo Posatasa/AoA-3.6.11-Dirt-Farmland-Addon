@@ -22,5 +22,13 @@
   "block.aoaagriculture.lunasole_farmland": "蓝色月球耕地",
   "block.aoaagriculture.lunasole_fertilised_farmland": "蓝色月球肥沃耕地",
   "block.aoaagriculture.weightless_farmland": "轻盈耕地",
-  "block.aoaagriculture.weightless_fertilised_farmland": "轻盈肥沃耕地"
+  "block.aoaagriculture.weightless_fertilised_farmland": "轻盈肥沃耕地",
+  "item.aoaagriculture.limonite_bucket": "褐铁桶",
+  "item.aoaagriculture.water_limonite_bucket": "褐铁水桶",
+  "item.aoaagriculture.lava_limonite_bucket": "褐铁熔岩桶",
+  "item.aoaagriculture.candied_water_limonite_bucket": "褐铁糖水桶",
+  "item.aoaagriculture.rosite_bucket": "玫石桶",
+  "item.aoaagriculture.water_rosite_bucket": "玫石水桶",
+  "item.aoaagriculture.lava_rosite_bucket": "玫石熔岩桶",
+  "item.aoaagriculture.candied_water_rosite_bucket": "玫石糖水桶"
 }

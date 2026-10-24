@@ -22,5 +22,13 @@
   "block.aoaagriculture.lunasole_farmland": "Lunasole Farmland",
   "block.aoaagriculture.lunasole_fertilised_farmland": "Lunasole Fertilised Farmland",
   "block.aoaagriculture.weightless_farmland": "Weightless Farmland",
-  "block.aoaagriculture.weightless_fertilised_farmland": "Weightless Fertilised Farmland"
+  "block.aoaagriculture.weightless_fertilised_farmland": "Weightless Fertilised Farmland",
+  "item.aoaagriculture.limonite_bucket": "Limonite Bucket",
+  "item.aoaagriculture.water_limonite_bucket": "Limonite Water Bucket",
+  "item.aoaagriculture.lava_limonite_bucket": "Limonite Lava Bucket",
+  "item.aoaagriculture.candied_water_limonite_bucket": "Limonite Candied Water Bucket",
+  "item.aoaagriculture.rosite_bucket": "Rosite Bucket",
+  "item.aoaagriculture.water_rosite_bucket": "Rosite Water Bucket",
+  "item.aoaagriculture.lava_rosite_bucket": "Rosite Lava Bucket",
+  "item.aoaagriculture.candied_water_rosite_bucket": "Rosite Candied Water Bucket"
 }

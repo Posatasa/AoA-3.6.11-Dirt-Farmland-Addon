@@ -20,6 +20,10 @@ public class VerifyAgainstSrg {
         String[] names = {
                 "com.posatasa.aoaagriculture.AddonFarmland",
                 "com.posatasa.aoaagriculture.registry.FarmlandBlocks",
+                "com.posatasa.aoaagriculture.registry.Buckets",
+                "com.posatasa.aoaagriculture.item.AoABucketItem",
+                "com.posatasa.aoaagriculture.item.BucketFamily",
+                "com.posatasa.aoaagriculture.item.BucketFamily",
                 "com.posatasa.aoaagriculture.registry.FarmlandBlocks$1",
                 "com.posatasa.aoaagriculture.registry.FarmlandBlocks$Soil",
                 "com.posatasa.aoaagriculture.ritual.MoonDirtRitual",

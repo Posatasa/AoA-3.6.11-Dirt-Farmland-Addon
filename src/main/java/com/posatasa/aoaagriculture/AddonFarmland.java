@@ -1,5 +1,6 @@
 package com.posatasa.aoaagriculture;
 
+import com.posatasa.aoaagriculture.registry.Buckets;
 import com.posatasa.aoaagriculture.registry.FarmlandBlocks;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
@@ -18,5 +19,6 @@ public class AddonFarmland {
     public AddonFarmland() {
         IEventBus bus = net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext.get().getModEventBus();
         FarmlandBlocks.register(bus);
+        Buckets.register(bus);
     }
 }

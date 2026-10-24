@@ -423,6 +423,55 @@ def verify_colony_soils(resources_dir):
     print("colony soils match the colony growth tag (%s)" % ", ".join(sorted(soils)))
 
 
+def verify_buckets(staging, remapped_dir):
+    """Checks that a modded bucket can never answer with a vanilla one.
+
+    Vanilla's bucket logic names the iron buckets directly: emptying hands back
+    `minecraft:bucket`, and filling produces `fluid.getBucket()`, which is the vanilla water or lava
+    bucket. A bucket that merely inherits that behaviour turns into iron on first use - the item
+    version of the farmland-becomes-dirt bug. Ours routes both answers through its family instead,
+    so no code here should mention a vanilla bucket at all, and the two overrides that do the
+    routing must be present.
+    """
+    VANILLA_BUCKETS = {
+        "field_151133_ar": "minecraft:bucket",
+        "field_151131_as": "minecraft:water_bucket",
+        "field_151129_at": "minecraft:lava_bucket",
+    }
+    problems = []
+    for root, _, files in os.walk(remapped_dir):
+        for name in files:
+            if not name.endswith(".class"):
+                continue
+            with open(os.path.join(root, name), "rb") as fh:
+                data = fh.read()
+            cls = remap.ClassFile(data)
+            for i in range(1, cls.count):
+                entry = cls.entries[i]
+                if entry is None or entry[0] != remap.CONSTANT_FIELDREF:
+                    continue
+                payload = entry[1]
+                owner = cls.utf8(cls.u2(cls.entries[cls.u2(payload)][1]))
+                if owner != "net/minecraft/item/Items":
+                    continue
+                member = cls.utf8(cls.u2(cls.entries[cls.u2(payload, 2)][1]))
+                if member in VANILLA_BUCKETS:
+                    problems.append("%s names %s" % (name, VANILLA_BUCKETS[member]))
+
+    bucket_class = os.path.join(staging, "classes-mcp", "com", "posatasa", "aoaagriculture",
+                                "item", "AoABucketItem.class")
+    with open(bucket_class, "rb") as fh:
+        declared = {name for name, _ in remap.ClassFile(fh.read()).declared_members()}
+    for required in ("getEmptySuccessItem", "use"):
+        if required not in declared:
+            problems.append("AoABucketItem does not override %s, so vanilla's answer for that "
+                            "step would stand" % required)
+
+    if problems:
+        raise SystemExit("buckets must never turn into vanilla ones:\n  " + "\n  ".join(problems))
+    print("buckets never name a vanilla bucket, and override both conversion points")
+
+
 def verify_aoa_names(staging, aoa_jar):
     """Checks that every AoA registry name and sound this add-on uses exists in the AoA jar.
 
@@ -569,6 +618,27 @@ def verify_refmap(mappings, tsrg_path, srg_jar):
     print("mixin refmap verified against the TSRG tables and the SRG jar")
 
 
+def _recipe_references(node):
+    """Every item id a recipe mentions, from `"item"` keys and the result."""
+    found = []
+
+    def walk(value):
+        if isinstance(value, dict):
+            for key, inner in value.items():
+                if key in ("item", "tag") and isinstance(inner, str):
+                    found.append(inner)
+                else:
+                    walk(inner)
+        elif isinstance(value, list):
+            for inner in value:
+                walk(inner)
+
+    walk(node.get("key", {}))
+    if isinstance(node.get("result"), dict):
+        walk(node["result"])
+    return found
+
+
 def verify_resources(resources_dir, aoa_jar):
     """Checks that every blockstate, model, texture and translation key actually resolves.
 
@@ -668,6 +738,42 @@ def verify_resources(resources_dir, aoa_jar):
                 if key not in variants:
                     problems.append("%s: missing variant %s" % (entry, key))
 
+    # Item models that are not block items need a name of their own; the block items are named by
+    # their block, which is checked above.
+    for entry in sorted(ours):
+        if not (entry.startswith("models/item/") and entry.endswith(".json")):
+            continue
+        name = entry[len("models/item/"):-len(".json")]
+        with open(os.path.join(assets_root, entry), encoding="utf-8") as fh:
+            parent = json.load(fh).get("parent", "")
+        if parent.startswith("aoaagriculture:block/"):
+            continue
+        for language, table in languages.items():
+            if "item.aoaagriculture." + name not in table:
+                problems.append("%s: missing item name in %s" % (name, language))
+
+    # Recipes must only ask for things that exist: AoA's items from the AoA jar, ours from the item
+    # models generated here.
+    recipes_dir = os.path.join(resources_dir, "data", "aoaagriculture", "recipes")
+    if os.path.isdir(recipes_dir):
+        for filename in sorted(os.listdir(recipes_dir)):
+            if not filename.endswith(".json"):
+                continue
+            with open(os.path.join(recipes_dir, filename), encoding="utf-8") as fh:
+                recipe = json.load(fh)
+            for reference in _recipe_references(recipe):
+                namespace, _, item_path = reference.partition(":")
+                if namespace == "aoa3":
+                    if not aoa_assets:
+                        continue                       # AoA jar unavailable: cannot check
+                    known = ("models/item/%s.json" % item_path in aoa_assets
+                             or "blockstates/%s.json" % item_path in aoa_assets)
+                    if not known:
+                        problems.append("%s: unknown AoA item %s" % (filename, reference))
+                elif namespace == "aoaagriculture":
+                    if "models/item/%s.json" % item_path not in ours:
+                        problems.append("%s: unknown item %s" % (filename, reference))
+
     # The harvest modifier only runs if its data files line up with the registered serializer.
     data_root = os.path.join(resources_dir, "data")
     modifier = os.path.join(data_root, "aoaagriculture", "loot_modifiers",
@@ -763,6 +869,7 @@ def build(staging, out_jar):
     verify_turn_to_soil_paths(staging)
     if aoa:
         verify_aoa_bridge(aoa)
+    verify_buckets(staging, remapped)
 
     # A mixin that names the wrong SRG method fails at class-transform time, i.e. it takes the
     # game down at startup. The refmap is the only place those names live, so check every entry
