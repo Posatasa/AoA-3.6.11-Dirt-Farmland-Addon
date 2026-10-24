@@ -17,6 +17,7 @@ import net.minecraft.util.ActionResult;
 import net.minecraft.util.Direction;
 import net.minecraft.util.DrinkHelper;
 import net.minecraft.util.Hand;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.SoundEvent;
 import net.minecraft.util.SoundEvents;
 import net.minecraft.util.math.BlockPos;
@@ -26,7 +27,11 @@ import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.world.World;
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.event.ForgeEventFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 /**
@@ -48,6 +53,10 @@ import java.util.function.Supplier;
  * bucket as the thing that gets filled. Emptying is still vanilla's, with only the answer replaced.
  */
 public class AoABucketItem extends BucketItem {
+    private static final Logger LOGGER = LogManager.getLogger("aoaagriculture");
+    /** Fluids already reported as unmatched, so the log gets one line each. */
+    private static final Set<ResourceLocation> UNMATCHED = ConcurrentHashMap.newKeySet();
+
     protected final BucketFamily family;
 
     public AoABucketItem(Fluid content, Item.Properties properties, BucketFamily family) {
@@ -149,7 +158,27 @@ public class AoABucketItem extends BucketItem {
     /** The stack this bucket becomes once it has taken {@code pickedUp}. */
     protected ItemStack filledFor(ItemStack stack, Fluid pickedUp) {
         BucketFamily.Kind kind = family.kindFor(pickedUp);
-        Item mine = kind == null ? null : family.item(kind);
-        return new ItemStack(mine == null ? pickedUp.getBucket() : mine);
+        if (kind != null && family.item(kind) != null) {
+            return new ItemStack(family.item(kind));
+        }
+        // Second opinion before settling for vanilla's answer: ask the fluid which bucket declares
+        // it, and match that bucket's fluid instead. A fluid block can hand back a flowing variant
+        // that no bucket names, while the bucket it declares is built around the source.
+        Item declared = pickedUp.getBucket();
+        ItemStack mapped = family.bucketFor(new ItemStack(declared));
+        if (mapped.getItem() != declared) {
+            return mapped;
+        }
+        warnOnce(pickedUp);
+        return new ItemStack(declared);
+    }
+
+    /** Says so, once per fluid, when a picked-up fluid cannot be matched to any of our buckets. */
+    private void warnOnce(Fluid pickedUp) {
+        if (UNMATCHED.add(pickedUp.getRegistryName())) {
+            LOGGER.warn("No bucket of this metal holds {} (picked up as {}); filling gives the "
+                            + "vanilla-family bucket instead",
+                    pickedUp.getRegistryName(), pickedUp);
+        }
     }
 }

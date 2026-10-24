@@ -1,5 +1,6 @@
 package com.posatasa.aoaagriculture.item;
 
+import net.minecraft.fluid.FlowingFluid;
 import net.minecraft.fluid.Fluid;
 import net.minecraft.item.BucketItem;
 import net.minecraft.item.Item;
@@ -53,18 +54,29 @@ public final class BucketFamily {
      *
      * <p>Matched by fluid identity against the family's own buckets rather than against a list of
      * fluid names, so nothing here has to know what water, lava or candied water are called.
+     *
+     * <p>Compared as sources, because the fluid that gets picked up is not always the one a bucket
+     * holds: {@code FlowingFluidBlock#takeLiquid} hands back the fluid the block was built from, and
+     * AoA builds its fluid blocks from the <em>flowing</em> fluid. Matching identities directly would
+     * miss AoA's candied water and fall back to AoA's own bucket - which is exactly what happened.
      */
     public Kind kindFor(Fluid fluid) {
         if (fluid == null) {
             return null;
         }
+        Fluid wanted = sourceOf(fluid);
         for (Kind kind : Kind.values()) {
             Item item = item(kind);
-            if (item instanceof BucketItem && ((BucketItem) item).getFluid() == fluid) {
+            if (item instanceof BucketItem && sourceOf(((BucketItem) item).getFluid()) == wanted) {
                 return kind;
             }
         }
         return null;
+    }
+
+    /** The source fluid of a flowing one; anything else is already its own source. */
+    public static Fluid sourceOf(Fluid fluid) {
+        return fluid instanceof FlowingFluid ? ((FlowingFluid) fluid).getSource() : fluid;
     }
 
     /** Maps a bucket vanilla's fill logic produced onto this family's bucket of the same kind. */

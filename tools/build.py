@@ -458,6 +458,27 @@ def verify_buckets(staging, remapped_dir):
                 if member in VANILLA_BUCKETS:
                     problems.append("%s names %s" % (name, VANILLA_BUCKETS[member]))
 
+    # Picking a fluid up does not always hand back the fluid a bucket holds: FlowingFluidBlock
+    # returns the fluid it was built from, and AoA builds its blocks from the FLOWING fluid. So the
+    # mapping has to compare sources; without that, filling with AoA's candied water silently falls
+    # back to AoA's own bucket.
+    family_class = os.path.join(staging, "classes-mcp", "com", "posatasa", "aoaagriculture", "item",
+                                "BucketFamily.class")
+    with open(family_class, "rb") as fh:
+        family = remap.ClassFile(fh.read())
+    sources = []
+    for i in range(1, family.count):
+        entry = family.entries[i]
+        if entry is None or entry[0] != remap.CONSTANT_METHODREF:
+            continue
+        payload = entry[1]
+        owner = family.utf8(family.u2(family.entries[family.u2(payload)][1]))
+        if owner == "net/minecraft/fluid/FlowingFluid":
+            sources.append(family.utf8(family.u2(family.entries[family.u2(payload, 2)][1])))
+    if "getSource" not in sources:
+        problems.append("BucketFamily does not reduce flowing fluids to their source, so a fluid "
+                        "block that reports a flowing fluid will not match any of our buckets")
+
     item_package = os.path.join(staging, "classes-mcp", "com", "posatasa", "aoaagriculture",
                                 "item")
     required_overrides = {

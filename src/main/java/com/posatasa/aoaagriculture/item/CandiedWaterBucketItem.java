@@ -97,19 +97,22 @@ public class CandiedWaterBucketItem extends AoABucketItem {
         if (!(fluid instanceof FlowingFluid)) {
             return false;
         }
+        // Always place the source: a bucket holds still water, whatever the block it came from
+        // reported as its fluid.
+        FlowingFluid source = (FlowingFluid) ((FlowingFluid) fluid).getSource();
         BlockState state = world.getBlockState(pos);
         Block block = state.getBlock();
         Material material = state.getMaterial();
-        boolean replaceable = state.canBeReplaced(fluid);
+        boolean replaceable = state.canBeReplaced(source);
         boolean canPlace = state.isAir() || replaceable
                 || (block instanceof ILiquidContainer
-                    && ((ILiquidContainer) block).canPlaceLiquid(world, pos, state, fluid));
+                    && ((ILiquidContainer) block).canPlaceLiquid(world, pos, state, source));
         if (!canPlace) {
             return hit != null
                     && emptyBucket(player, world,
                             hit.getBlockPos().relative(hit.getDirection()), null);
         }
-        if (world.dimensionType().ultraWarm() && fluid.is(FluidTags.WATER)) {
+        if (world.dimensionType().ultraWarm() && source.is(FluidTags.WATER)) {
             world.playSound(player, pos, SoundEvents.FIRE_EXTINGUISH, SoundCategory.BLOCKS, 0.5F,
                     2.6F + (world.random.nextFloat() - world.random.nextFloat()) * 0.8F);
             for (int i = 0; i < 8; i++) {
@@ -120,16 +123,15 @@ public class CandiedWaterBucketItem extends AoABucketItem {
             return true;
         }
         if (block instanceof ILiquidContainer
-                && ((ILiquidContainer) block).canPlaceLiquid(world, pos, state, fluid)) {
-            ((ILiquidContainer) block).placeLiquid(world, pos, state,
-                    ((FlowingFluid) fluid).getSource(false));
+                && ((ILiquidContainer) block).canPlaceLiquid(world, pos, state, source)) {
+            ((ILiquidContainer) block).placeLiquid(world, pos, state, source.getSource(false));
             playEmptySound(player, world, pos);
             return true;
         }
         if (!world.isClientSide && replaceable && !material.isLiquid()) {
             world.destroyBlock(pos, true);
         }
-        if (!world.setBlock(pos, fluid.defaultFluidState().createLegacyBlock(), 11)
+        if (!world.setBlock(pos, source.defaultFluidState().createLegacyBlock(), 11)
                 && !state.getFluidState().isSource()) {
             return false;
         }
