@@ -77,7 +77,7 @@ public class AoABucketItem extends BucketItem {
      * checks, same statistics, sound and advancement - only the item that ends up in the player's
      * hands (or bag, in creative) changes.
      */
-    private ActionResult<ItemStack> fill(World world, PlayerEntity player, Hand hand) {
+    protected ActionResult<ItemStack> fill(World world, PlayerEntity player, Hand hand) {
         ItemStack stack = player.getItemInHand(hand);
         BlockRayTraceResult hit = Item.getPlayerPOVHitResult(world, player,
                 RayTraceContext.FluidMode.SOURCE_ONLY);
@@ -95,7 +95,8 @@ public class AoABucketItem extends BucketItem {
             return ActionResult.fail(stack);
         }
         BlockState state = world.getBlockState(pos);
-        if (!(state.getBlock() instanceof IBucketPickupHandler)) {
+        if (!(state.getBlock() instanceof IBucketPickupHandler)
+                || !accepts(world.getFluidState(pos).getType())) {
             return ActionResult.fail(stack);
         }
         Fluid pickedUp = ((IBucketPickupHandler) state.getBlock()).takeLiquid(world, pos, state);
@@ -111,7 +112,7 @@ public class AoABucketItem extends BucketItem {
         }
         player.playSound(sound, 1.0F, 1.0F);
 
-        ItemStack filled = new ItemStack(bucketFor(pickedUp));
+        ItemStack filled = filledFor(stack, pickedUp);
         // This is the step that matters in creative: it puts the stack into the inventory instead of
         // returning it, so the stack has to be ours before it is called.
         ItemStack result = DrinkHelper.createFilledResult(stack, player, filled);
@@ -121,10 +122,21 @@ public class AoABucketItem extends BucketItem {
         return ActionResult.sidedSuccess(result, world.isClientSide());
     }
 
-    /** Our bucket for the fluid that was picked up; vanilla's choice when it is not one of ours. */
-    private Item bucketFor(Fluid pickedUp) {
+    /**
+     * Whether this bucket will take the fluid it is looking at.
+     *
+     * <p>Checked before the fluid is taken out of the world, so a refusal never destroys a source.
+     * The default accepts anything, which is vanilla's behaviour; the Emberstone buckets narrow it
+     * to lava.
+     */
+    protected boolean accepts(Fluid fluid) {
+        return true;
+    }
+
+    /** The stack this bucket becomes once it has taken {@code pickedUp}. */
+    protected ItemStack filledFor(ItemStack stack, Fluid pickedUp) {
         BucketFamily.Kind kind = family.kindFor(pickedUp);
         Item mine = kind == null ? null : family.item(kind);
-        return mine == null ? pickedUp.getBucket() : mine;
+        return new ItemStack(mine == null ? pickedUp.getBucket() : mine);
     }
 }

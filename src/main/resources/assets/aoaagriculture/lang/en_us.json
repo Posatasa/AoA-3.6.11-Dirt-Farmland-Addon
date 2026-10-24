@@ -40,5 +40,9 @@
   "item.aoaagriculture.water_lunar_bucket": "Lunar Water Bucket",
   "item.aoaagriculture.water_lunar_bucket.tooltip": "Protects from fall damage while held.",
   "item.aoaagriculture.lava_lunar_bucket": "Lunar Lava Bucket",
-  "item.aoaagriculture.candied_water_lunar_bucket": "Lunar Candied Water Bucket"
+  "item.aoaagriculture.candied_water_lunar_bucket": "Lunar Candied Water Bucket",
+  "item.aoaagriculture.emberstone_bucket": "Emberstone Bucket",
+  "item.aoaagriculture.emberstone_bucket.tooltip": "Takes lava only - up to four buckets of it.",
+  "item.aoaagriculture.lava_emberstone_bucket": "Emberstone Lava Bucket",
+  "item.aoaagriculture.lava_emberstone_bucket.tooltip": "Lava: %s / %s"
 }

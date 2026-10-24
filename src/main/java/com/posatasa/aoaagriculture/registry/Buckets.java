@@ -1,6 +1,8 @@
 package com.posatasa.aoaagriculture.registry;
 
 import com.posatasa.aoaagriculture.item.AoABucketItem;
+import com.posatasa.aoaagriculture.item.EmberstoneBucketItem;
+import com.posatasa.aoaagriculture.item.EmberstoneLavaBucketItem;
 import com.posatasa.aoaagriculture.item.InfiniteWaterBucketItem;
 import com.posatasa.aoaagriculture.item.LunarWaterBucketItem;
 import com.posatasa.aoaagriculture.item.BucketFamily;
@@ -45,6 +47,8 @@ public final class Buckets {
     public static final BucketFamily SHYRE = new BucketFamily("shyre");
     /** Lunar's water bucket makes the player immune to fall damage while held. */
     public static final BucketFamily LUNAR = new BucketFamily("lunar");
+    /** Emberstone's bucket is a lava tank: four deep, and water is refused outright. */
+    public static final BucketFamily EMBERSTONE = new BucketFamily("emberstone");
 
     private static Fluid candiedWater;
 
@@ -53,6 +57,7 @@ public final class Buckets {
         family(ROSITE, AoABucketItem::new);
         family(SHYRE, InfiniteWaterBucketItem::new);
         family(LUNAR, LunarWaterBucketItem::new);
+        emberstone();
         ITEMS.register(modBus);
         MinecraftForge.EVENT_BUS.addListener(Buckets::onFall);
     }
@@ -94,6 +99,17 @@ public final class Buckets {
                 && LunarWaterBucketItem.isHeldBy((PlayerEntity) event.getEntityLiving())) {
             event.setDamageMultiplier(0.0F);
         }
+    }
+
+    /**
+     * The Emberstone family has two buckets, not four: it holds lava and nothing else, so a water
+     * or candied water bucket for it would be an item that cannot be filled.
+     */
+    private static void emberstone() {
+        bind(EMBERSTONE, BucketFamily.Kind.EMPTY, "emberstone_bucket", () -> Fluids.EMPTY, 1,
+                EmberstoneBucketItem::new);
+        bind(EMBERSTONE, BucketFamily.Kind.LAVA, "lava_emberstone_bucket", () -> Fluids.LAVA, 1,
+                EmberstoneLavaBucketItem::new);
     }
 
     private static Fluid candiedWater() {

@@ -472,6 +472,10 @@ def verify_buckets(staging, remapped_dir):
         # The lunar water bucket does nothing different mechanically; the tooltip is how the player
         # is meant to learn what it does, so losing it would make the item look inert.
         "LunarWaterBucketItem.class": ("appendHoverText",),
+        # The Emberstone tank cannot be a plain bucket: it must refuse everything but lava on both
+        # paths, and it must override use to count what goes in and out.
+        "EmberstoneBucketItem.class": ("accepts", "filledFor", "appendHoverText"),
+        "EmberstoneLavaBucketItem.class": ("use", "appendHoverText"),
     }
     for filename, wanted in required_overrides.items():
         path = os.path.join(item_package, filename)
@@ -768,7 +772,8 @@ def verify_resources(resources_dir, aoa_jar):
                 problems.append("%s: missing item name in %s" % (name, language))
 
     # Both buckets that do more than a bucket must explain themselves, in every language.
-    for name in ("water_shyre_bucket", "water_lunar_bucket"):
+    for name in ("water_shyre_bucket", "water_lunar_bucket", "emberstone_bucket",
+                 "lava_emberstone_bucket"):
         for language, table in languages.items():
             if "item.aoaagriculture.%s.tooltip" % name not in table:
                 problems.append("%s: missing tooltip for %s" % (language, name))
