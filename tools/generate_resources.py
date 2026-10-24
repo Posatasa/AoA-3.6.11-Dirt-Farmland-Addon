@@ -115,24 +115,26 @@ BUCKET_KINDS = (("", "bucket", False),
                 ("water_", "water_bucket", False),
                 ("lava_", "lava_bucket", False),
                 ("candied_water_", "water_bucket", True))
-# Each AoA metal that gets buckets: its name, the icon its colour comes from, the icons that make up
-# a top-to-bottom gradient (None for a flat colour), and which buckets it has.
+# Each AoA metal that gets buckets: its name, the ingot its crafting recipe uses, the colours its
+# metal is drawn in (icon names with a brightness scale, top to bottom - one entry means flat), and
+# which buckets it has.
 #
-# Shyre runs cyan (the gem) through the bright gold of bright rock to the ingot's blue - three shades
-# of the same place, which reads as a sheen rather than as one flat colour.
+# The scales matter as much as the hues. Shyre's gem and its ingot sit barely twenty degrees apart,
+# so blending them at one brightness looked flat; the gem is lifted and the ingot dropped, which
+# makes the two ends of the gradient obvious.
 EMBER_KINDS = (("", "bucket", False), ("lava_", "lava_bucket", False))
 
 BUCKET_METALS = (
-    ("limonite", "limonite_ingot", None, BUCKET_KINDS),
-    ("rosite", "rosite_ingot", None, BUCKET_KINDS),
-    ("shyre", "shyrestone_ingot", ("shyregem", "bright_rock"), BUCKET_KINDS),
-    ("lunar", "lunar_ingot", None, BUCKET_KINDS),
+    ("limonite", "limonite_ingot", (("limonite_ingot", 1.00),), BUCKET_KINDS),
+    ("rosite", "rosite_ingot", (("rosite_ingot", 1.00),), BUCKET_KINDS),
+    ("shyre", "shyrestone_ingot",
+     (("shyregem", 1.35), ("shyrestone_ingot", 0.70)), BUCKET_KINDS),
+    ("lunar", "lunar_ingot", (("lunar_ingot", 1.00),), BUCKET_KINDS),
     # The Emberstone bucket is a lava tank: it refuses water and candied water outright, so it has
-    # only the two buckets that make sense for it.
-    # The ingot is a dark brown-red that washes out to pale copper once lifted to the bucket s
-    # brightness, so this one takes its colour from the ore, which is the hottest orange AoA
-    # uses for emberstone.
-    ("emberstone", "emberstone_ore", None, EMBER_KINDS),
+    # only the two buckets that make sense for it. Its colour comes from the ore - the reddest
+    # emberstone texture - and is dropped well under the limonite bucket's brightness, because at
+    # full brightness the two oranges read as the same metal.
+    ("emberstone", "emberstone_ingot", (("emberstone_ore", 0.68),), EMBER_KINDS),
 )
 
 
@@ -343,9 +345,8 @@ def generate_bucket_icons(zm, za):
             out[row] = stops[low] * (1.0 - t) + stops[low + 1] * t
         return out
 
-    for metal_name, ingot_name, gradient_from, kinds in BUCKET_METALS:
-        stops = [colour_of(icon) for icon in gradient_from] if gradient_from else []
-        stops.append(colour_of(ingot_name))
+    for metal_name, ingot_name, colour_stops, kinds in BUCKET_METALS:
+        stops = [colour_of(icon) * scale for icon, scale in colour_stops]
 
         for prefix, shape, tint_fluid in kinds:
             base = load(zm, "assets/minecraft/textures/item/%s.png" % shape)
@@ -354,7 +355,7 @@ def generate_bucket_icons(zm, za):
             Image.fromarray(image).save(
                 os.path.join(item_dir, "%s%s_bucket.png" % (prefix, metal_name)))
         print("  %s: %d bucket icons%s" % (metal_name, len(kinds),
-                                           " (gradient)" if gradient_from else ""))
+                                           " (gradient)" if len(stops) > 1 else ""))
 
 
 def generate_resources():
@@ -444,7 +445,7 @@ def generate_resources():
         dirt_tag.append("aoaagriculture:" + fertilised)
 
     # ---- buckets: item models, one crafting recipe per metal, and names
-    for metal_name, ingot_name, _gradient, kinds in BUCKET_METALS:
+    for metal_name, ingot_name, _colours, kinds in BUCKET_METALS:
         for prefix, _shape, _tint in kinds:
             item_name = "%s%s_bucket" % (prefix, metal_name)
             write_json(os.path.join(ASSETS, "models", "item", item_name + ".json"), {
