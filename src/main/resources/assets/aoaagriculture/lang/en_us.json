@@ -30,5 +30,9 @@
   "item.aoaagriculture.rosite_bucket": "Rosite Bucket",
   "item.aoaagriculture.water_rosite_bucket": "Rosite Water Bucket",
   "item.aoaagriculture.lava_rosite_bucket": "Rosite Lava Bucket",
-  "item.aoaagriculture.candied_water_rosite_bucket": "Rosite Candied Water Bucket"
+  "item.aoaagriculture.candied_water_rosite_bucket": "Rosite Candied Water Bucket",
+  "item.aoaagriculture.shyre_bucket": "Shyre Bucket",
+  "item.aoaagriculture.water_shyre_bucket": "Shyre Water Bucket",
+  "item.aoaagriculture.lava_shyre_bucket": "Shyre Lava Bucket",
+  "item.aoaagriculture.candied_water_shyre_bucket": "Shyre Candied Water Bucket"
 }

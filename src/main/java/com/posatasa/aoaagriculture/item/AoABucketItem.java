@@ -26,7 +26,7 @@ import net.minecraft.world.World;
  * that owns it: the content decides what is placed, and the family decides what is handed back.
  */
 public class AoABucketItem extends BucketItem {
-    private final BucketFamily family;
+    protected final BucketFamily family;
 
     public AoABucketItem(Fluid content, Item.Properties properties, BucketFamily family) {
         super(content, properties);

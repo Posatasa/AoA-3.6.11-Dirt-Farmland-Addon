@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "aoa3:shyrestone_ingot"
+    },
+    {
+      "item": "aoa3:shyrestone_ingot"
+    },
+    {
+      "item": "aoa3:shyrestone_ingot"
+    },
+    {
+      "item": "aoa3:shyregem"
+    }
+  ],
+  "result": {
+    "item": "aoaagriculture:shyre_bucket"
+  }
+}

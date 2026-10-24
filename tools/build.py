@@ -458,14 +458,22 @@ def verify_buckets(staging, remapped_dir):
                 if member in VANILLA_BUCKETS:
                     problems.append("%s names %s" % (name, VANILLA_BUCKETS[member]))
 
-    bucket_class = os.path.join(staging, "classes-mcp", "com", "posatasa", "aoaagriculture",
-                                "item", "AoABucketItem.class")
-    with open(bucket_class, "rb") as fh:
-        declared = {name for name, _ in remap.ClassFile(fh.read()).declared_members()}
-    for required in ("getEmptySuccessItem", "use"):
-        if required not in declared:
-            problems.append("AoABucketItem does not override %s, so vanilla's answer for that "
-                            "step would stand" % required)
+    item_package = os.path.join(staging, "classes-mcp", "com", "posatasa", "aoaagriculture",
+                                "item")
+    required_overrides = {
+        "AoABucketItem.class": ("getEmptySuccessItem", "use"),
+        # The Shyre water bucket pours without using itself up, and empties on a long hold, which is
+        # the use-action trio below. Missing any of them turns it into an ordinary bucket.
+        "InfiniteWaterBucketItem.class": ("use", "releaseUsing", "getUseDuration"),
+    }
+    for filename, wanted in required_overrides.items():
+        path = os.path.join(item_package, filename)
+        with open(path, "rb") as fh:
+            declared = {name for name, _ in remap.ClassFile(fh.read()).declared_members()}
+        for required in wanted:
+            if required not in declared:
+                problems.append("%s does not override %s, so a vanilla answer or the plain bucket "
+                                "behaviour would stand" % (filename, required))
 
     if problems:
         raise SystemExit("buckets must never turn into vanilla ones:\n  " + "\n  ".join(problems))

@@ -66,6 +66,7 @@ BUCKET_NAMES = {
 METAL_NAMES = {
     "limonite": ("Limonite", "褐铁"),
     "rosite": ("Rosite", "玫石"),
+    "shyre": ("Shyre", "塞尔瑞"),
 }
 
 TAB_KEY = "itemGroup.aoaagriculture"
@@ -90,7 +91,8 @@ FERTILISED_BRIGHTNESS = 0.85
 WELL_BRIGHTNESS = 0.74
 
 # The two AoA metals that get buckets, paired with the ingot texture whose palette they take.
-BUCKET_METALS = (("limonite", "limonite_ingot"), ("rosite", "rosite_ingot"))
+BUCKET_METALS = (("limonite", "limonite_ingot"), ("rosite", "rosite_ingot"),
+                 ("shyre", "shyrestone_ingot"))
 
 # One entry per bucket kind: the registry-name prefix, the vanilla icon it starts from, and whether
 # the fluid should be re-tinted (only candied water, whose contents are not vanilla's water).
@@ -386,14 +388,28 @@ def generate_resources():
             en["item.aoaagriculture." + item_name] = english.format(METAL_NAMES[metal_name][0])
             zh["item.aoaagriculture." + item_name] = chinese.format(METAL_NAMES[metal_name][1])
 
-        # The vanilla bucket recipe, in this metal's ingots.
-        write_json(os.path.join(DATA, "aoaagriculture", "recipes",
-                                metal_name + "_bucket.json"), {
-            "type": "minecraft:crafting_shaped",
-            "pattern": ["# #", " # "],
-            "key": {"#": {"item": "aoa3:" + ingot_name}},
-            "result": {"item": "aoaagriculture:" + metal_name + "_bucket"},
-        })
+        # The vanilla bucket recipe, in this metal's ingots - except Shyre, which takes three ingots
+        # and a gem, so it is shapeless rather than forced into the bucket's three-slot shape.
+        if metal_name == "shyre":
+            write_json(os.path.join(DATA, "aoaagriculture", "recipes",
+                                    metal_name + "_bucket.json"), {
+                "type": "minecraft:crafting_shapeless",
+                "ingredients": [
+                    {"item": "aoa3:" + ingot_name},
+                    {"item": "aoa3:" + ingot_name},
+                    {"item": "aoa3:" + ingot_name},
+                    {"item": "aoa3:shyregem"},
+                ],
+                "result": {"item": "aoaagriculture:" + metal_name + "_bucket"},
+            })
+        else:
+            write_json(os.path.join(DATA, "aoaagriculture", "recipes",
+                                    metal_name + "_bucket.json"), {
+                "type": "minecraft:crafting_shaped",
+                "pattern": ["# #", " # "],
+                "key": {"#": {"item": "aoa3:" + ingot_name}},
+                "result": {"item": "aoaagriculture:" + metal_name + "_bucket"},
+            })
 
     write_json(os.path.join(ASSETS, "lang", "en_us.json"), en)
     write_json(os.path.join(ASSETS, "lang", "zh_cn.json"), zh)

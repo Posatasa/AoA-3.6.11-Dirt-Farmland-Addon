@@ -1,6 +1,7 @@
 package com.posatasa.aoaagriculture.registry;
 
 import com.posatasa.aoaagriculture.item.AoABucketItem;
+import com.posatasa.aoaagriculture.item.InfiniteWaterBucketItem;
 import com.posatasa.aoaagriculture.item.BucketFamily;
 import net.minecraft.fluid.Fluid;
 import net.minecraft.fluid.Fluids;
@@ -35,28 +36,39 @@ public final class Buckets {
 
     public static final BucketFamily LIMONITE = new BucketFamily("limonite");
     public static final BucketFamily ROSITE = new BucketFamily("rosite");
+    /** Shyre's water bucket is a portable water source; the rest of the family is ordinary. */
+    public static final BucketFamily SHYRE = new BucketFamily("shyre");
 
     private static Fluid candiedWater;
 
     public static void register(IEventBus modBus) {
-        family(LIMONITE);
-        family(ROSITE);
+        family(LIMONITE, false);
+        family(ROSITE, false);
+        family(SHYRE, true);
         ITEMS.register(modBus);
     }
 
-    private static void family(BucketFamily family) {
+    /** How one bucket item is built; the Shyre water bucket is the only one that differs. */
+    private interface Factory {
+        Item create(Fluid content, Item.Properties properties, BucketFamily family);
+    }
+
+    private static void family(BucketFamily family, boolean infiniteWater) {
         String metal = family.metal();
+        Factory ordinary = AoABucketItem::new;
         // An empty bucket stacks to 16 and a filled one to 1, exactly as vanilla's do.
-        bind(family, BucketFamily.Kind.EMPTY, metal + "_bucket", () -> Fluids.EMPTY, 16);
-        bind(family, BucketFamily.Kind.WATER, "water_" + metal + "_bucket", () -> Fluids.WATER, 1);
-        bind(family, BucketFamily.Kind.LAVA, "lava_" + metal + "_bucket", () -> Fluids.LAVA, 1);
+        bind(family, BucketFamily.Kind.EMPTY, metal + "_bucket", () -> Fluids.EMPTY, 16, ordinary);
+        bind(family, BucketFamily.Kind.WATER, "water_" + metal + "_bucket", () -> Fluids.WATER, 1,
+                infiniteWater ? InfiniteWaterBucketItem::new : ordinary);
+        bind(family, BucketFamily.Kind.LAVA, "lava_" + metal + "_bucket", () -> Fluids.LAVA, 1,
+                ordinary);
         bind(family, BucketFamily.Kind.CANDIED_WATER, "candied_water_" + metal + "_bucket",
-                Buckets::candiedWater, 1);
+                Buckets::candiedWater, 1, ordinary);
     }
 
     private static void bind(BucketFamily family, BucketFamily.Kind kind, String name,
-                             Supplier<Fluid> fluid, int stackSize) {
-        RegistryObject<Item> item = ITEMS.register(name, () -> new AoABucketItem(fluid.get(),
+                             Supplier<Fluid> fluid, int stackSize, Factory factory) {
+        RegistryObject<Item> item = ITEMS.register(name, () -> factory.create(fluid.get(),
                 new Item.Properties().tab(FarmlandBlocks.TAB).stacksTo(stackSize), family));
         family.bind(kind, item);
     }

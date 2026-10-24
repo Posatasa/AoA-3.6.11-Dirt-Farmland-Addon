@@ -30,5 +30,9 @@
   "item.aoaagriculture.rosite_bucket": "玫石桶",
   "item.aoaagriculture.water_rosite_bucket": "玫石水桶",
   "item.aoaagriculture.lava_rosite_bucket": "玫石熔岩桶",
-  "item.aoaagriculture.candied_water_rosite_bucket": "玫石糖水桶"
+  "item.aoaagriculture.candied_water_rosite_bucket": "玫石糖水桶",
+  "item.aoaagriculture.shyre_bucket": "塞尔瑞桶",
+  "item.aoaagriculture.water_shyre_bucket": "塞尔瑞水桶",
+  "item.aoaagriculture.lava_shyre_bucket": "塞尔瑞熔岩桶",
+  "item.aoaagriculture.candied_water_shyre_bucket": "塞尔瑞糖水桶"
 }
