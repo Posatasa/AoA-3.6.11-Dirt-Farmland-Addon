@@ -1,6 +1,7 @@
 package com.posatasa.aoaagriculture.registry;
 
 import com.posatasa.aoaagriculture.item.AoABucketItem;
+import com.posatasa.aoaagriculture.item.CandiedWaterBucketItem;
 import com.posatasa.aoaagriculture.item.EmberstoneBucketItem;
 import com.posatasa.aoaagriculture.item.EmberstoneLavaBucketItem;
 import com.posatasa.aoaagriculture.item.InfiniteWaterBucketItem;
@@ -76,8 +77,12 @@ public final class Buckets {
                 waterFactory);
         bind(family, BucketFamily.Kind.LAVA, "lava_" + metal + "_bucket", () -> Fluids.LAVA, 1,
                 ordinary);
-        bind(family, BucketFamily.Kind.CANDIED_WATER, "candied_water_" + metal + "_bucket",
-                Buckets::candiedWater, 1, ordinary);
+        // Candied water is AoA's fluid, and fluids are registered after items, so this one is
+        // built around a lazily resolved fluid rather than a value.
+        RegistryObject<Item> candied = ITEMS.register("candied_water_" + metal + "_bucket",
+                () -> new CandiedWaterBucketItem(Buckets::candiedWater,
+                        new Item.Properties().tab(FarmlandBlocks.TAB).stacksTo(1), family));
+        family.bind(BucketFamily.Kind.CANDIED_WATER, candied);
     }
 
     private static void bind(BucketFamily family, BucketFamily.Kind kind, String name,
@@ -112,7 +117,7 @@ public final class Buckets {
                 EmberstoneLavaBucketItem::new);
     }
 
-    private static Fluid candiedWater() {
+    public static Fluid candiedWater() {
         if (candiedWater == null) {
             candiedWater = ForgeRegistries.FLUIDS.getValue(new ResourceLocation(CANDIED_WATER));
             if (candiedWater == null) {

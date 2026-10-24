@@ -476,6 +476,9 @@ def verify_buckets(staging, remapped_dir):
         # paths, and it must override use to count what goes in and out.
         "EmberstoneBucketItem.class": ("accepts", "filledFor", "appendHoverText"),
         "EmberstoneLavaBucketItem.class": ("use", "appendHoverText"),
+        # AoA's candied water is registered after items, so this bucket resolves it lazily and has
+        # to do the pour itself: vanilla's placement reads the eagerly-set fluid field.
+        "CandiedWaterBucketItem.class": ("use", "emptyBucket", "getFluid"),
     }
     for filename, wanted in required_overrides.items():
         path = os.path.join(item_package, filename)

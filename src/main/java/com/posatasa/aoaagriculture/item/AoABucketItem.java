@@ -27,6 +27,8 @@ import net.minecraft.world.World;
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.event.ForgeEventFactory;
 
+import java.util.function.Supplier;
+
 /**
  * A bucket of one metal: vanilla's bucket behaviour, with every item it hands back replaced by the
  * matching bucket of the same metal.
@@ -49,6 +51,17 @@ public class AoABucketItem extends BucketItem {
     protected final BucketFamily family;
 
     public AoABucketItem(Fluid content, Item.Properties properties, BucketFamily family) {
+        super(content, properties);
+        this.family = family;
+    }
+
+    /**
+     * For fluids that are not in the registry when items are made - Forge registers fluids after
+     * items, so AoA's are not. The fluid then resolves on first use; anything that would read the
+     * eager field has to be overridden, which is what {@code CandiedWaterBucketItem} does.
+     */
+    public AoABucketItem(Supplier<? extends Fluid> content, Item.Properties properties,
+                         BucketFamily family) {
         super(content, properties);
         this.family = family;
     }
