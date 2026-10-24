@@ -15,10 +15,14 @@ public class VerifyListeners {
         Class<?> genericEvent = Class.forName("net.minecraftforge.eventbus.api.GenericEvent");
         // initialize=false: only the signatures are needed, and running the static initialiser
         // would register blocks outside a mod-loading context.
-        Class<?> mod = Class.forName("com.posatasa.aoaagriculture.registry.FarmlandBlocks", false,
-                VerifyListeners.class.getClassLoader());
+        String[] holders = {
+                "com.posatasa.aoaagriculture.registry.FarmlandBlocks",
+                "com.posatasa.aoaagriculture.registry.Buckets",
+        };
         int checked = 0;
         int failures = 0;
+        for (String holder : holders) {
+        Class<?> mod = Class.forName(holder, false, VerifyListeners.class.getClassLoader());
         for (Method method : mod.getDeclaredMethods()) {
             if (method.getParameterCount() != 1) {
                 continue;
@@ -36,6 +40,7 @@ public class VerifyListeners {
                 System.out.println("  FAIL: addListener would throw for this event type");
                 failures++;
             }
+        }
         }
         System.out.println(failures == 0
                 ? "OK: all " + checked + " listeners are registrable with addListener"

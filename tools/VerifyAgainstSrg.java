@@ -23,6 +23,7 @@ public class VerifyAgainstSrg {
                 "com.posatasa.aoaagriculture.registry.Buckets",
                 "com.posatasa.aoaagriculture.item.AoABucketItem",
                 "com.posatasa.aoaagriculture.item.InfiniteWaterBucketItem",
+                "com.posatasa.aoaagriculture.item.LunarWaterBucketItem",
                 "com.posatasa.aoaagriculture.item.BucketFamily",
                 "com.posatasa.aoaagriculture.item.BucketFamily",
                 "com.posatasa.aoaagriculture.registry.FarmlandBlocks$1",

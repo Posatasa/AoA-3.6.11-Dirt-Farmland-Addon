@@ -467,7 +467,11 @@ def verify_buckets(staging, remapped_dir):
         # completed-hold clear (finishUsingItem - a completed hold does NOT go through releaseUsing),
         # the hold length, and an animation to show for it.
         "InfiniteWaterBucketItem.class": ("use", "releaseUsing", "finishUsingItem",
-                                          "getUseDuration", "getUseAnimation"),
+                                          "getUseDuration", "getUseAnimation",
+                                          "appendHoverText"),
+        # The lunar water bucket does nothing different mechanically; the tooltip is how the player
+        # is meant to learn what it does, so losing it would make the item look inert.
+        "LunarWaterBucketItem.class": ("appendHoverText",),
     }
     for filename, wanted in required_overrides.items():
         path = os.path.join(item_package, filename)
@@ -762,6 +766,12 @@ def verify_resources(resources_dir, aoa_jar):
         for language, table in languages.items():
             if "item.aoaagriculture." + name not in table:
                 problems.append("%s: missing item name in %s" % (name, language))
+
+    # Both buckets that do more than a bucket must explain themselves, in every language.
+    for name in ("water_shyre_bucket", "water_lunar_bucket"):
+        for language, table in languages.items():
+            if "item.aoaagriculture.%s.tooltip" % name not in table:
+                problems.append("%s: missing tooltip for %s" % (language, name))
 
     # Recipes must only ask for things that exist: AoA's items from the AoA jar, ours from the item
     # models generated here.

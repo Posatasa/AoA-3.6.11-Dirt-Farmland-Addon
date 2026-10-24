@@ -1,5 +1,6 @@
 package com.posatasa.aoaagriculture.item;
 
+import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.fluid.Fluid;
@@ -10,7 +11,13 @@ import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.SoundEvents;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextFormatting;
+import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraft.world.World;
+
+import javax.annotation.Nullable;
+import java.util.List;
 
 /**
  * The Shyre water bucket: pouring costs nothing, so it is a portable water source.
@@ -35,6 +42,7 @@ import net.minecraft.world.World;
 public class InfiniteWaterBucketItem extends AoABucketItem {
     /** How long the button has to be held: two seconds, the 40 ticks a bow also spends per second. */
     private static final int HOLD_TICKS = 40;
+    private static final String TOOLTIP = "item.aoaagriculture.water_shyre_bucket.tooltip";
 
     public InfiniteWaterBucketItem(Fluid content, Item.Properties properties, BucketFamily family) {
         super(content, properties, family);
@@ -43,6 +51,12 @@ public class InfiniteWaterBucketItem extends AoABucketItem {
     @Override
     public int getUseDuration(ItemStack stack) {
         return HOLD_TICKS;
+    }
+
+    @Override
+    public void appendHoverText(ItemStack stack, @Nullable World world, List<ITextComponent> tooltip,
+                               ITooltipFlag flag) {
+        tooltip.add(new TranslationTextComponent(TOOLTIP).withStyle(TextFormatting.GRAY));
     }
 
     /** The bow's pull-back pose, so the hold is visible rather than silent. */

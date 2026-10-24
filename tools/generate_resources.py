@@ -67,6 +67,18 @@ METAL_NAMES = {
     "limonite": ("Limonite", "褐铁"),
     "rosite": ("Rosite", "玫石"),
     "shyre": ("Shyre", "塞尔瑞"),
+    "lunar": ("Lunar", "月锭"),
+}
+
+# Tooltips for the two buckets that do more than a bucket does. The keys are per item name, because
+# each one describes that item's own behaviour.
+BUCKET_TOOLTIPS = {
+    "water_shyre_bucket": (
+        "Pours without using up its water - hold to empty.",
+        "倒水不会消耗水；按住右键 2 秒清空。"),
+    "water_lunar_bucket": (
+        "Protects from fall damage while held.",
+        "手持时免疫摔落伤害。"),
 }
 
 TAB_KEY = "itemGroup.aoaagriculture"
@@ -90,9 +102,13 @@ WET_LEVEL = MOISTURE_LEVELS - 1
 FERTILISED_BRIGHTNESS = 0.85
 WELL_BRIGHTNESS = 0.74
 
-# The two AoA metals that get buckets, paired with the ingot texture whose palette they take.
-BUCKET_METALS = (("limonite", "limonite_ingot"), ("rosite", "rosite_ingot"),
-                 ("shyre", "shyrestone_ingot"))
+# Each AoA metal that gets buckets: its name, the ingot texture its colour comes from, and - when a
+# second icon is named - that icon's colour as the other end of a top-to-bottom gradient. Shyre uses
+# its gem's cyan at the top and its ingot's blue at the bottom.
+BUCKET_METALS = (("limonite", "limonite_ingot", None),
+                 ("rosite", "rosite_ingot", None),
+                 ("shyre", "shyrestone_ingot", "shyregem"),
+                 ("lunar", "lunar_ingot", None))
 
 # One entry per bucket kind: the registry-name prefix, the vanilla icon it starts from, and whether
 # the fluid should be re-tinted (only candied water, whose contents are not vanilla's water).
@@ -257,7 +273,7 @@ def generate_bucket_icons(zm, za):
         lum = luminance(rgb)
         if is_metal.any():
             reference = lum[is_metal].mean()
-            out[is_metal] = np.clip(metal[None, :] * (lum[is_metal] / reference)[:, None], 0, 255)
+            out[is_metal] = np.clip(metal[is_metal] * (lum[is_metal] / reference)[:, None], 0, 255)
         if fluid_tint is not None and is_fluid.any():
             reference = lum[is_fluid].mean()
             out[is_fluid] = np.clip(np.array(fluid_tint)[None, :]
@@ -276,18 +292,32 @@ def generate_bucket_icons(zm, za):
     candied_rgb = candied[:, :, :3][(candied[:, :, 3] > 0) & (saturation(candied[:, :, :3]) >= 0.25)]
     candied_tint = candied_rgb.mean(axis=0)
 
-    for metal_name, ingot_name in BUCKET_METALS:
-        ingot = load(za, "assets/aoa3/textures/item/%s.png" % ingot_name)
-        visible = ingot[:, :, 3] > 0
-        metal = ingot[:, :, :3][visible].mean(axis=0)
-        metal = metal * (target_lum / max(luminance(metal.reshape(1, 1, 3))[0, 0], 1e-6))
+    def colour_of(icon_name):
+        """An AoA icon's average colour, brought to the brightness of vanilla's bucket metal."""
+        icon = load(za, "assets/aoa3/textures/item/%s.png" % icon_name)
+        visible = icon[:, :, 3] > 0
+        colour = icon[:, :, :3][visible].mean(axis=0)
+        return colour * (target_lum / max(luminance(colour.reshape(1, 1, 3))[0, 0], 1e-6))
+
+    for metal_name, ingot_name, gradient_from in BUCKET_METALS:
+        bottom = colour_of(ingot_name)
+        top = colour_of(gradient_from) if gradient_from else bottom
 
         for prefix, shape, tint_fluid in BUCKET_KINDS:
             base = load(zm, "assets/minecraft/textures/item/%s.png" % shape)
-            image = recolour(base, metal, candied_tint if tint_fluid else None)
+            height, width = base.shape[:2]
+            if gradient_from is None:
+                metal = np.broadcast_to(bottom, (height, width, 3))
+            else:
+                # Row by row from top to bottom; the shading of each pixel is applied on top of it.
+                ramp = np.linspace(0.0, 1.0, height)[:, None, None]
+                metal = top[None, None, :] * (1.0 - ramp) + bottom[None, None, :] * ramp
+            image = recolour(base, np.broadcast_to(metal, (height, width, 3)),
+                             candied_tint if tint_fluid else None)
             Image.fromarray(image).save(
                 os.path.join(item_dir, "%s%s_bucket.png" % (prefix, metal_name)))
-        print("  %s: 4 bucket icons" % metal_name)
+        print("  %s: 4 bucket icons%s" % (metal_name,
+                                          " (gradient)" if gradient_from else ""))
 
 
 def generate_resources():
@@ -377,7 +407,7 @@ def generate_resources():
         dirt_tag.append("aoaagriculture:" + fertilised)
 
     # ---- buckets: item models, one crafting recipe per metal, and names
-    for metal_name, ingot_name in BUCKET_METALS:
+    for metal_name, ingot_name, _gradient in BUCKET_METALS:
         for prefix, _shape, _tint in BUCKET_KINDS:
             item_name = "%s%s_bucket" % (prefix, metal_name)
             write_json(os.path.join(ASSETS, "models", "item", item_name + ".json"), {
@@ -387,6 +417,10 @@ def generate_resources():
             english, chinese = BUCKET_NAMES[prefix]
             en["item.aoaagriculture." + item_name] = english.format(METAL_NAMES[metal_name][0])
             zh["item.aoaagriculture." + item_name] = chinese.format(METAL_NAMES[metal_name][1])
+            if item_name in BUCKET_TOOLTIPS:
+                tip_en, tip_zh = BUCKET_TOOLTIPS[item_name]
+                en["item.aoaagriculture." + item_name + ".tooltip"] = tip_en
+                zh["item.aoaagriculture." + item_name + ".tooltip"] = tip_zh
 
         # The vanilla bucket recipe, in this metal's ingots - except Shyre, which takes three ingots
         # and a gem, so it is shapeless rather than forced into the bucket's three-slot shape.

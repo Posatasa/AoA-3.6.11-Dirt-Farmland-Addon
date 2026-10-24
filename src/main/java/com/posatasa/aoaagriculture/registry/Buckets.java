@@ -2,12 +2,17 @@ package com.posatasa.aoaagriculture.registry;
 
 import com.posatasa.aoaagriculture.item.AoABucketItem;
 import com.posatasa.aoaagriculture.item.InfiniteWaterBucketItem;
+import com.posatasa.aoaagriculture.item.LunarWaterBucketItem;
 import com.posatasa.aoaagriculture.item.BucketFamily;
 import net.minecraft.fluid.Fluid;
 import net.minecraft.fluid.Fluids;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.entity.living.LivingFallEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.RegistryObject;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -38,14 +43,18 @@ public final class Buckets {
     public static final BucketFamily ROSITE = new BucketFamily("rosite");
     /** Shyre's water bucket is a portable water source; the rest of the family is ordinary. */
     public static final BucketFamily SHYRE = new BucketFamily("shyre");
+    /** Lunar's water bucket makes the player immune to fall damage while held. */
+    public static final BucketFamily LUNAR = new BucketFamily("lunar");
 
     private static Fluid candiedWater;
 
     public static void register(IEventBus modBus) {
-        family(LIMONITE, false);
-        family(ROSITE, false);
-        family(SHYRE, true);
+        family(LIMONITE, AoABucketItem::new);
+        family(ROSITE, AoABucketItem::new);
+        family(SHYRE, InfiniteWaterBucketItem::new);
+        family(LUNAR, LunarWaterBucketItem::new);
         ITEMS.register(modBus);
+        MinecraftForge.EVENT_BUS.addListener(Buckets::onFall);
     }
 
     /** How one bucket item is built; the Shyre water bucket is the only one that differs. */
@@ -53,13 +62,13 @@ public final class Buckets {
         Item create(Fluid content, Item.Properties properties, BucketFamily family);
     }
 
-    private static void family(BucketFamily family, boolean infiniteWater) {
+    private static void family(BucketFamily family, Factory waterFactory) {
         String metal = family.metal();
         Factory ordinary = AoABucketItem::new;
         // An empty bucket stacks to 16 and a filled one to 1, exactly as vanilla's do.
         bind(family, BucketFamily.Kind.EMPTY, metal + "_bucket", () -> Fluids.EMPTY, 16, ordinary);
         bind(family, BucketFamily.Kind.WATER, "water_" + metal + "_bucket", () -> Fluids.WATER, 1,
-                infiniteWater ? InfiniteWaterBucketItem::new : ordinary);
+                waterFactory);
         bind(family, BucketFamily.Kind.LAVA, "lava_" + metal + "_bucket", () -> Fluids.LAVA, 1,
                 ordinary);
         bind(family, BucketFamily.Kind.CANDIED_WATER, "candied_water_" + metal + "_bucket",
@@ -71,6 +80,20 @@ public final class Buckets {
         RegistryObject<Item> item = ITEMS.register(name, () -> factory.create(fluid.get(),
                 new Item.Properties().tab(FarmlandBlocks.TAB).stacksTo(stackSize), family));
         family.bind(kind, item);
+    }
+
+    /**
+     * The Moon Ingot water bucket's promise: no fall damage while it is in hand.
+     *
+     * <p>Setting the multiplier rather than cancelling keeps the landing itself - the sounds and
+     * particles still play, there is simply no damage to take.
+     */
+    @SubscribeEvent
+    public static void onFall(LivingFallEvent event) {
+        if (event.getEntityLiving() instanceof PlayerEntity
+                && LunarWaterBucketItem.isHeldBy((PlayerEntity) event.getEntityLiving())) {
+            event.setDamageMultiplier(0.0F);
+        }
     }
 
     private static Fluid candiedWater() {

@@ -33,6 +33,12 @@
   "item.aoaagriculture.candied_water_rosite_bucket": "Rosite Candied Water Bucket",
   "item.aoaagriculture.shyre_bucket": "Shyre Bucket",
   "item.aoaagriculture.water_shyre_bucket": "Shyre Water Bucket",
+  "item.aoaagriculture.water_shyre_bucket.tooltip": "Pours without using up its water - hold to empty.",
   "item.aoaagriculture.lava_shyre_bucket": "Shyre Lava Bucket",
-  "item.aoaagriculture.candied_water_shyre_bucket": "Shyre Candied Water Bucket"
+  "item.aoaagriculture.candied_water_shyre_bucket": "Shyre Candied Water Bucket",
+  "item.aoaagriculture.lunar_bucket": "Lunar Bucket",
+  "item.aoaagriculture.water_lunar_bucket": "Lunar Water Bucket",
+  "item.aoaagriculture.water_lunar_bucket.tooltip": "Protects from fall damage while held.",
+  "item.aoaagriculture.lava_lunar_bucket": "Lunar Lava Bucket",
+  "item.aoaagriculture.candied_water_lunar_bucket": "Lunar Candied Water Bucket"
 }
